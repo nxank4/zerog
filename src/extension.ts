@@ -77,8 +77,115 @@ class SidebarProvider implements vscode.WebviewViewProvider {
         case 'copyCode':
           await this._handleCopyCode(data.value);
           break;
+        case 'clearContext':
+          this._handleClearContext();
+          break;
+        case 'requestContext':
+          this._sendContextInfo();
+          break;
       }
     });
+
+    // Send initial context
+    this._sendContextInfo();
+  }
+
+  private _sendContextInfo() {
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+      const fileName = editor.document.fileName.split('/').pop() || 'Unknown';
+      const languageId = editor.document.languageId;
+      this._view?.webview.postMessage({
+        type: 'updateContext',
+        fileName: fileName,
+        languageId: languageId
+      });
+    } else {
+      this._view?.webview.postMessage({
+        type: 'updateContext',
+        fileName: null,
+        languageId: null
+      });
+    }
+  }
+
+  private _handleClearContext() {
+    this._messages = [];
+    this._view?.webview.postMessage({
+      type: 'contextCleared'
+    });
+    vscode.window.showInformationMessage('Chat context cleared');
+  }
+
+  private _gatherContext(): { contextInfo: string; metadata: any } {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return {
+        contextInfo: '',
+        metadata: {
+          hasContext: false
+        }
+      };
+    }
+
+    const document = editor.document;
+    const selection = editor.selection;
+    const fileName = document.fileName.split('/').pop() || 'Unknown';
+    const languageId = document.languageId;
+    const selectedText = document.getText(selection);
+    
+    let contextInfo = '';
+    const metadata: any = {
+      hasContext: true,
+      fileName: fileName,
+      languageId: languageId
+    };
+
+    // Add file context
+    contextInfo += `[Context File: ${fileName}]\n`;
+    contextInfo += `[Language: ${languageId}]\n`;
+
+    // Add selection or full file context
+    if (selectedText && !selection.isEmpty) {
+      const startLine = selection.start.line + 1;
+      const endLine = selection.end.line + 1;
+      contextInfo += `[Code Selection: lines ${startLine}-${endLine}]\n\n`;
+      contextInfo += '```' + languageId + '\n';
+      contextInfo += selectedText + '\n';
+      contextInfo += '```\n\n';
+      metadata.selectionLines = `${startLine}-${endLine}`;
+      metadata.hasSelection = true;
+    } else {
+      // If no selection, include relevant file content (limited to avoid token overflow)
+      const fullText = document.getText();
+      const lineCount = document.lineCount;
+      
+      if (lineCount <= 100) {
+        // Include entire file if small
+        contextInfo += `[Full File Content: ${lineCount} lines]\n\n`;
+        contextInfo += '```' + languageId + '\n';
+        contextInfo += fullText + '\n';
+        contextInfo += '```\n\n';
+        metadata.fullFile = true;
+      } else {
+        // Include cursor context for large files
+        const cursorLine = selection.active.line;
+        const startLine = Math.max(0, cursorLine - 25);
+        const endLine = Math.min(lineCount - 1, cursorLine + 25);
+        const contextText = document.getText(
+          new vscode.Range(startLine, 0, endLine, document.lineAt(endLine).text.length)
+        );
+        
+        contextInfo += `[File Context: lines ${startLine + 1}-${endLine + 1} of ${lineCount}]\n\n`;
+        contextInfo += '```' + languageId + '\n';
+        contextInfo += contextText + '\n';
+        contextInfo += '```\n\n';
+        metadata.contextLines = `${startLine + 1}-${endLine + 1}`;
+        metadata.totalLines = lineCount;
+      }
+    }
+
+    return { contextInfo, metadata };
   }
 
   private async _handleSendMessage(userMessage: string) {
@@ -92,24 +199,21 @@ class SidebarProvider implements vscode.WebviewViewProvider {
     const model = config.get<string>('model', 'claude-opus-4-6-thinking');
     const systemPrompt = config.get<string>('systemPrompt', 'You are a helpful coding assistant.');
 
-    // Get selected code from active editor
-    const editor = vscode.window.activeTextEditor;
-    let selectedCode = '';
-    if (editor) {
-      const selection = editor.selection;
-      selectedCode = editor.document.getText(selection);
-    }
+    // Gather structured context
+    const { contextInfo, metadata } = this._gatherContext();
 
-    // Construct user message with context
-    let fullMessage = userMessage;
-    if (selectedCode) {
-      fullMessage = userMessage + '\n\nSelected Code Context:\n```\n' + selectedCode + '\n```';
+    // Construct enhanced user message with structured context
+    let fullMessage = '';
+    if (metadata.hasContext) {
+      fullMessage = contextInfo + 'User Query: ' + userMessage;
+    } else {
+      fullMessage = userMessage;
     }
 
     // Add user message to history
     this._messages.push({ role: 'user', content: fullMessage });
 
-    // Update UI with user message (render as plain text for user messages)
+    // Update UI with user message (show only query, not full context)
     this._view?.webview.postMessage({
       type: 'addMessage',
       role: 'user',
@@ -460,11 +564,53 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '      40% { content: \'..\'; }\n' +
 '      60%, 100% { content: \'...\'; }\n' +
 '    }\n' +
+'    .context-bar {\n' +
+'      padding: 8px 12px;\n' +
+'      background-color: var(--vscode-editorWidget-background);\n' +
+'      border-top: 1px solid var(--vscode-widget-border);\n' +
+'      display: flex;\n' +
+'      justify-content: space-between;\n' +
+'      align-items: center;\n' +
+'      font-size: 11px;\n' +
+'    }\n' +
+'    .context-info {\n' +
+'      display: flex;\n' +
+'      align-items: center;\n' +
+'      gap: 8px;\n' +
+'      color: var(--vscode-descriptionForeground);\n' +
+'    }\n' +
+'    .context-badge {\n' +
+'      background-color: var(--vscode-badge-background);\n' +
+'      color: var(--vscode-badge-foreground);\n' +
+'      padding: 2px 8px;\n' +
+'      border-radius: 10px;\n' +
+'      font-weight: 600;\n' +
+'    }\n' +
+'    .clear-context-btn {\n' +
+'      background-color: transparent;\n' +
+'      color: var(--vscode-descriptionForeground);\n' +
+'      border: 1px solid var(--vscode-widget-border);\n' +
+'      padding: 4px 10px;\n' +
+'      border-radius: 4px;\n' +
+'      cursor: pointer;\n' +
+'      font-size: 11px;\n' +
+'      font-weight: 600;\n' +
+'    }\n' +
+'    .clear-context-btn:hover {\n' +
+'      background-color: var(--vscode-button-hoverBackground);\n' +
+'      color: var(--vscode-button-foreground);\n' +
+'    }\n' +
 '  </style>\n' +
 '</head>\n' +
 '<body>\n' +
 '  <div id="chat-container"></div>\n' +
 '  <div class="loading" id="loading">AI is thinking</div>\n' +
+'  <div class="context-bar">\n' +
+'    <div class="context-info">\n' +
+'      <span id="context-text">No active file</span>\n' +
+'    </div>\n' +
+'    <button class="clear-context-btn" id="clear-context-btn">Clear Context</button>\n' +
+'  </div>\n' +
 '  <div id="input-container">\n' +
 '    <input type="text" id="message-input" placeholder="Ask me anything..." />\n' +
 '    <button id="send-button">Send</button>\n' +
@@ -475,6 +621,8 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '    const messageInput = document.getElementById(\'message-input\');\n' +
 '    const sendButton = document.getElementById(\'send-button\');\n' +
 '    const loading = document.getElementById(\'loading\');\n' +
+'    const contextText = document.getElementById(\'context-text\');\n' +
+'    const clearContextBtn = document.getElementById(\'clear-context-btn\');\n' +
 '    function sendMessage() {\n' +
 '      const message = messageInput.value.trim();\n' +
 '      if (!message) return;\n' +
@@ -482,12 +630,16 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '      messageInput.value = \'\';\n' +
 '    }\n' +
 '    sendButton.addEventListener(\'click\', sendMessage);\n' +
+'    clearContextBtn.addEventListener(\'click\', () => {\n' +
+'      vscode.postMessage({ type: \'clearContext\' });\n' +
+'    });\n' +
 '    messageInput.addEventListener(\'keypress\', (e) => {\n' +
 '      if (e.key === \'Enter\' && !e.shiftKey) {\n' +
 '        e.preventDefault();\n' +
 '        sendMessage();\n' +
 '      }\n' +
 '    });\n' +
+'    vscode.postMessage({ type: \'requestContext\' });\n' +
 '    let currentStreamingMessage = null;\n' +
 '    let currentStreamingContent = null;\n' +
 '    window.addEventListener(\'message\', (event) => {\n' +
@@ -520,8 +672,21 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '            sendButton.disabled = false;\n' +
 '          }\n' +
 '          break;\n' +
+'        case \'updateContext\':\n' +
+'          updateContextDisplay(message.fileName, message.languageId);\n' +
+'          break;\n' +
+'        case \'contextCleared\':\n' +
+'          chatContainer.innerHTML = \'\';\n' +
+'          break;\n' +
 '      }\n' +
 '    });\n' +
+'    function updateContextDisplay(fileName, languageId) {\n' +
+'      if (fileName && languageId) {\n' +
+'        contextText.innerHTML = \'Reading: <span class="context-badge">\' + fileName + \'</span> (\' + languageId + \')\';\n' +
+'      } else {\n' +
+'        contextText.textContent = \'No active file\';\n' +
+'      }\n' +
+'    }\n' +
 '    function startStreamingMessage(role) {\n' +
 '      const messageDiv = document.createElement(\'div\');\n' +
 '      messageDiv.className = \'message \' + role;\n' +
