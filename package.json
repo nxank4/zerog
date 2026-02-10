@@ -36,6 +36,18 @@
       {
         "command": "zerog.openChat",
         "title": "Zero-G: Open AI Chat"
+      },
+      {
+        "command": "zerog.inlineEdit",
+        "title": "Zero-G: Inline Edit"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "zerog.inlineEdit",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+k",
+        "when": "editorTextFocus && editorHasSelection"
       }
     ],
     "configuration": {
@@ -60,6 +72,11 @@
           "type": "string",
           "default": "You are a helpful coding assistant.",
           "description": "System prompt for the AI assistant"
+        },
+        "zerog.enableAutocomplete": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI-powered ghost text autocomplete (Copilot-style inline completions)"
         }
       }
     }

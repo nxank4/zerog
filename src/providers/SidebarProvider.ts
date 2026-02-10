@@ -21,8 +21,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private _terminalService: TerminalService;
 
   constructor(private readonly _extensionUri: vscode.Uri) {
-    this._aiService = new AIService();
     this._contextService = new ContextService();
+    this._aiService = new AIService(this._contextService);
     this._editorService = new EditorService();
     this._terminalService = new TerminalService();
   }
@@ -40,6 +40,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     };
 
     webviewView.webview.html = getWebviewContent(webviewView.webview);
+
+    // Initialize project map for AI context
+    this._aiService.initializeProjectMap().catch(err => {
+      console.error('[SidebarProvider] Failed to initialize project map:', err);
+    });
 
     webviewView.webview.onDidReceiveMessage(async (data: IWebviewMessage) => {
       switch (data.type) {
@@ -295,5 +300,22 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
    */
   private async _handleRunTerminalCommand(command: string) {
     await this._terminalService.executeCommand(command);
+  }
+
+  /**
+   * Send error message to chat (triggered by Terminal Link Provider).
+   * Opens the chat sidebar and automatically sends the error fix prompt.
+   *
+   * @param errorMessage - Error message from terminal
+   */
+  public async sendErrorToChat(errorMessage: string): Promise<void> {
+    // Open chat sidebar
+    await vscode.commands.executeCommand('zerog.chatView.focus');
+
+    // Wait a moment for the webview to be ready
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Send the error message to chat
+    await this._handleSendMessage(errorMessage);
   }
 }

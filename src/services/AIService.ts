@@ -3,14 +3,18 @@ import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import { IChatMessage, IContextItem, IExtensionConfig } from '../types';
+import { ContextService } from './ContextService';
 
 /**
  * Service responsible for AI communication with Antigravity proxy
  */
 export class AIService {
   private _md: MarkdownIt;
+  private _contextService: ContextService;
+  private _projectMap: string | null = null;
 
-  constructor() {
+  constructor(contextService?: ContextService) {
+    this._contextService = contextService || new ContextService();
     // Initialize markdown-it with syntax highlighting
     this._md = new MarkdownIt({
       html: true,
@@ -42,6 +46,40 @@ export class AIService {
       model: config.get<string>('model', 'claude-opus-4-6-thinking'),
       systemPrompt: config.get<string>('systemPrompt', 'You are a helpful coding assistant.')
     };
+  }
+
+  /**
+   * Initialize project map by loading it from ContextService.
+   * Should be called on extension activation or when chat opens.
+   */
+  public async initializeProjectMap(): Promise<void> {
+    try {
+      this._projectMap = await this._contextService.generateProjectMap();
+      console.log('[AIService] Project map initialized');
+    } catch (error: any) {
+      console.error('[AIService] Failed to initialize project map:', error.message);
+      this._projectMap = null;
+    }
+  }
+
+  /**
+   * Build the enhanced system prompt with project map.
+   *
+   * @param basePrompt - Base system prompt from config
+   * @returns Enhanced system prompt with project structure
+   */
+  private _buildSystemPrompt(basePrompt: string): string {
+    if (!this._projectMap) {
+      return basePrompt;
+    }
+
+    return `${basePrompt}
+
+You have access to the following project file structure:
+
+${this._projectMap}
+
+Use this structure to understand the codebase organization and provide more contextually relevant suggestions.`;
   }
 
   /**
@@ -115,7 +153,7 @@ export class AIService {
         {
           model: config.model,
           max_tokens: 4096,
-          system: config.systemPrompt,
+          system: this._buildSystemPrompt(config.systemPrompt),
           messages: messagesWithContext,
           stream: true
         },
@@ -245,5 +283,69 @@ export class AIService {
     }
     
     return { processedMessage, displayMessage };
+  }
+
+  /**
+   * Get AI completion for ghost text (inline autocomplete).
+   * Simplified version without streaming, optimized for FIM (Fill-In-Middle).
+   *
+   * @param prompt - FIM prompt with prefix and suffix context
+   * @param abortSignal - Signal to cancel the request
+   * @returns Completion text
+   */
+  public async getCompletion(prompt: string, abortSignal: AbortSignal): Promise<string> {
+    const config = this._getConfig();
+
+    try {
+      const response = await axios.post(
+        config.baseUrl + '/v1/messages',
+        {
+          model: config.model,
+          max_tokens: 512, // Shorter for autocomplete
+          system: 'You are a code completion assistant. Provide concise, accurate completions.',
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          stream: false, // Non-streaming for simpler handling
+          temperature: 0.3 // Lower temperature for more predictable completions
+        },
+        {
+          headers: {
+            'x-api-key': config.authToken,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+          },
+          signal: abortSignal
+        }
+      );
+
+      // Extract completion from response
+      const content = response.data?.content?.[0]?.text || '';
+      
+      // Clean up completion (remove code fences if present)
+      let completion = content.trim();
+      
+      // Remove markdown code fences if AI ignored instructions
+      if (completion.startsWith('```')) {
+        const lines = completion.split('\n');
+        // Remove first line (```language) and last line (```)
+        completion = lines.slice(1, -1).join('\n').trim();
+      }
+
+      return completion;
+    } catch (error: any) {
+      // Re-throw abort errors for proper handling
+      if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        const abortError = new Error('Request aborted');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
+
+      const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
+      throw new Error(`AI Completion Error: ${errorMessage}`);
+    }
   }
 }
