@@ -117,11 +117,13 @@ class SidebarProvider implements vscode.WebviewViewProvider {
       html: false
     });
 
-    // Show loading indicator
+    // Initialize streaming message
     this._view?.webview.postMessage({
-      type: 'setLoading',
-      value: true
+      type: 'startStream',
+      role: 'assistant'
     });
+
+    let assistantMessage = '';
 
     try {
       const response = await axios.post(
@@ -130,45 +132,106 @@ class SidebarProvider implements vscode.WebviewViewProvider {
           model: model,
           max_tokens: 4096,
           system: systemPrompt,
-          messages: this._messages
+          messages: this._messages,
+          stream: true
         },
         {
           headers: {
             'x-api-key': authToken,
             'anthropic-version': '2023-06-01',
             'Content-Type': 'application/json'
-          }
+          },
+          responseType: 'stream'
         }
       );
 
-      let assistantMessage = '';
-      
-      // Handle different response formats
-      if (response.data.content && Array.isArray(response.data.content)) {
-        // Standard Anthropic format
-        assistantMessage = response.data.content
-          .filter((block: any) => block.type === 'text')
-          .map((block: any) => block.text)
-          .join('\n');
-      } else if (typeof response.data.content === 'string') {
-        assistantMessage = response.data.content;
-      } else if (response.data.message) {
-        assistantMessage = response.data.message;
-      }
+      // Handle streaming response
+      response.data.on('data', (chunk: Buffer) => {
+        const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
+        
+        for (const line of lines) {
+          // Skip empty lines and comments
+          if (!line.trim() || line.startsWith(':')) {
+            continue;
+          }
+
+          // Parse SSE format: "data: {...}"
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            
+            // Handle stream end
+            if (data === '[DONE]') {
+              continue;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              
+              // Handle Anthropic format
+              if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+                const textChunk = parsed.delta.text;
+                assistantMessage += textChunk;
+                
+                // Send partial update to webview
+                this._view?.webview.postMessage({
+                  type: 'streamChunk',
+                  content: textChunk
+                });
+              }
+              // Handle standard format with delta
+              else if (parsed.delta?.content) {
+                const textChunk = parsed.delta.content;
+                assistantMessage += textChunk;
+                
+                this._view?.webview.postMessage({
+                  type: 'streamChunk',
+                  content: textChunk
+                });
+              }
+              // Handle message_delta format
+              else if (parsed.type === 'message_delta' && parsed.delta?.content) {
+                const textChunk = parsed.delta.content;
+                assistantMessage += textChunk;
+                
+                this._view?.webview.postMessage({
+                  type: 'streamChunk',
+                  content: textChunk
+                });
+              }
+              // Handle simple text chunks
+              else if (parsed.text) {
+                const textChunk = parsed.text;
+                assistantMessage += textChunk;
+                
+                this._view?.webview.postMessage({
+                  type: 'streamChunk',
+                  content: textChunk
+                });
+              }
+            } catch (parseError) {
+              console.error('Error parsing SSE data:', parseError);
+            }
+          }
+        }
+      });
+
+      // Wait for stream to complete
+      await new Promise<void>((resolve, reject) => {
+        response.data.on('end', () => resolve());
+        response.data.on('error', (err: Error) => reject(err));
+      });
 
       // Add assistant message to history
       this._messages.push({ role: 'assistant', content: assistantMessage });
 
-      // Render markdown to HTML
+      // Render markdown and finalize
       const renderedHtml = this._md.render(assistantMessage);
-
-      // Update UI with assistant message
+      
       this._view?.webview.postMessage({
-        type: 'addMessage',
-        role: 'assistant',
-        content: renderedHtml,
-        html: true
+        type: 'streamDone',
+        content: renderedHtml
       });
+
     } catch (error: any) {
       let errorMessage = 'Failed to get response from AI';
       
@@ -181,19 +244,11 @@ class SidebarProvider implements vscode.WebviewViewProvider {
       }
 
       this._view?.webview.postMessage({
-        type: 'addMessage',
-        role: 'assistant',
-        content: '❌ **Error:** ' + errorMessage,
-        html: false
+        type: 'streamError',
+        content: '❌ **Error:** ' + errorMessage
       });
 
       vscode.window.showErrorMessage('Zero-G: ' + errorMessage);
-    } finally {
-      // Hide loading indicator
-      this._view?.webview.postMessage({
-        type: 'setLoading',
-        value: false
-      });
     }
   }
 
@@ -433,11 +488,28 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '        sendMessage();\n' +
 '      }\n' +
 '    });\n' +
+'    let currentStreamingMessage = null;\n' +
+'    let currentStreamingContent = null;\n' +
 '    window.addEventListener(\'message\', (event) => {\n' +
 '      const message = event.data;\n' +
 '      switch (message.type) {\n' +
 '        case \'addMessage\':\n' +
 '          addMessage(message.role, message.content, message.html);\n' +
+'          break;\n' +
+'        case \'startStream\':\n' +
+'          startStreamingMessage(message.role);\n' +
+'          sendButton.disabled = true;\n' +
+'          break;\n' +
+'        case \'streamChunk\':\n' +
+'          appendStreamChunk(message.content);\n' +
+'          break;\n' +
+'        case \'streamDone\':\n' +
+'          finalizeStream(message.content);\n' +
+'          sendButton.disabled = false;\n' +
+'          break;\n' +
+'        case \'streamError\':\n' +
+'          handleStreamError(message.content);\n' +
+'          sendButton.disabled = false;\n' +
 '          break;\n' +
 '        case \'setLoading\':\n' +
 '          if (message.value) {\n' +
@@ -450,6 +522,49 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '          break;\n' +
 '      }\n' +
 '    });\n' +
+'    function startStreamingMessage(role) {\n' +
+'      const messageDiv = document.createElement(\'div\');\n' +
+'      messageDiv.className = \'message \' + role;\n' +
+'      const bubbleDiv = document.createElement(\'div\');\n' +
+'      bubbleDiv.className = \'message-bubble\';\n' +
+'      const headerDiv = document.createElement(\'div\');\n' +
+'      headerDiv.className = \'message-header\';\n' +
+'      headerDiv.textContent = role === \'user\' ? \'You\' : \'Zero-G AI\';\n' +
+'      const contentDiv = document.createElement(\'div\');\n' +
+'      contentDiv.className = \'message-content\';\n' +
+'      contentDiv.textContent = \'\';\n' +
+'      bubbleDiv.appendChild(headerDiv);\n' +
+'      bubbleDiv.appendChild(contentDiv);\n' +
+'      messageDiv.appendChild(bubbleDiv);\n' +
+'      chatContainer.appendChild(messageDiv);\n' +
+'      currentStreamingMessage = messageDiv;\n' +
+'      currentStreamingContent = contentDiv;\n' +
+'      chatContainer.scrollTop = chatContainer.scrollHeight;\n' +
+'    }\n' +
+'    function appendStreamChunk(chunk) {\n' +
+'      if (currentStreamingContent) {\n' +
+'        currentStreamingContent.textContent += chunk;\n' +
+'        chatContainer.scrollTop = chatContainer.scrollHeight;\n' +
+'      }\n' +
+'    }\n' +
+'    function finalizeStream(renderedHtml) {\n' +
+'      if (currentStreamingContent) {\n' +
+'        currentStreamingContent.innerHTML = renderedHtml;\n' +
+'        enhanceCodeBlocks(currentStreamingContent);\n' +
+'        currentStreamingMessage = null;\n' +
+'        currentStreamingContent = null;\n' +
+'        chatContainer.scrollTop = chatContainer.scrollHeight;\n' +
+'      }\n' +
+'    }\n' +
+'    function handleStreamError(errorMessage) {\n' +
+'      if (currentStreamingContent) {\n' +
+'        currentStreamingContent.textContent = errorMessage;\n' +
+'      } else {\n' +
+'        addMessage(\'assistant\', errorMessage, false);\n' +
+'      }\n' +
+'      currentStreamingMessage = null;\n' +
+'      currentStreamingContent = null;\n' +
+'    }\n' +
 '    function addMessage(role, content, isHtml) {\n' +
 '      const messageDiv = document.createElement(\'div\');\n' +
 '      messageDiv.className = \'message \' + role;\n' +
