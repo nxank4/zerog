@@ -2,8 +2,9 @@ import axios from 'axios';
 import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
-import { IChatMessage, IContextItem, IExtensionConfig } from '../types';
+import { IChatMessage, IContextItem, IExtensionConfig, IParsedContent, IParsedSegment, IToolCall, ZeroGMode } from '../types';
 import { ContextService } from './ContextService';
+import { PromptFactory } from './PromptFactory';
 
 /**
  * Service responsible for AI communication with Antigravity proxy
@@ -122,26 +123,56 @@ Use this structure to understand the codebase organization and provide more cont
    * @param messages - Array of chat messages
    * @param contextItems - Array of context items (files, selections)
    * @param onChunk - Callback for each streaming chunk
+   * @param mode - Current Zero-G mode (ask, planner, agent, debug)
    * @returns Complete assistant message
    */
   public async sendMessage(
     messages: IChatMessage[],
     contextItems: IContextItem[],
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    mode: ZeroGMode = 'ask',
+    abortSignal?: AbortSignal
   ): Promise<string> {
     const config = this._getConfig();
+
+    // Use PromptFactory for mode-specific prompt, fall back to config for 'ask'
+    const basePrompt = mode === 'ask'
+      ? config.systemPrompt
+      : PromptFactory.getSystemPrompt(mode);
     
-    // Add context to the first user message if available
+    // Add context to the last user message if available
     const contextString = this._formatContext(contextItems);
     const messagesWithContext = [...messages];
-    
+
     if (contextString && messagesWithContext.length > 0) {
       const lastUserMessageIndex = messagesWithContext.length - 1;
-      if (messagesWithContext[lastUserMessageIndex].role === 'user') {
-        messagesWithContext[lastUserMessageIndex] = {
-          ...messagesWithContext[lastUserMessageIndex],
-          content: contextString + 'User Query: ' + messagesWithContext[lastUserMessageIndex].content
-        };
+      const lastMsg = messagesWithContext[lastUserMessageIndex];
+      if (lastMsg.role === 'user') {
+        if (typeof lastMsg.content === 'string') {
+          // Simple string message — prepend context
+          messagesWithContext[lastUserMessageIndex] = {
+            ...lastMsg,
+            content: contextString + 'User Query: ' + lastMsg.content
+          };
+        } else if (Array.isArray(lastMsg.content)) {
+          // Multimodal message — prepend context as a text block
+          const contextBlock = { type: 'text' as const, text: contextString + 'User Query: ' };
+          const updatedBlocks = [...lastMsg.content];
+          // Find the first text block and prepend context to it
+          const firstTextIdx = updatedBlocks.findIndex(b => b.type === 'text');
+          if (firstTextIdx !== -1) {
+            updatedBlocks[firstTextIdx] = {
+              ...updatedBlocks[firstTextIdx],
+              text: contextString + 'User Query: ' + (updatedBlocks[firstTextIdx].text || '')
+            };
+          } else {
+            updatedBlocks.unshift(contextBlock);
+          }
+          messagesWithContext[lastUserMessageIndex] = {
+            ...lastMsg,
+            content: updatedBlocks
+          };
+        }
       }
     }
 
@@ -153,7 +184,7 @@ Use this structure to understand the codebase organization and provide more cont
         {
           model: config.model,
           max_tokens: 4096,
-          system: this._buildSystemPrompt(config.systemPrompt),
+          system: this._buildSystemPrompt(basePrompt),
           messages: messagesWithContext,
           stream: true
         },
@@ -163,7 +194,8 @@ Use this structure to understand the codebase organization and provide more cont
             'anthropic-version': '2023-06-01',
             'Content-Type': 'application/json'
           },
-          responseType: 'stream'
+          responseType: 'stream',
+          signal: abortSignal
         }
       );
 
@@ -347,5 +379,71 @@ Use this structure to understand the codebase organization and provide more cont
       const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
       throw new Error(`AI Completion Error: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Parse tool calls from AI response
+   * @param content - AI response content that may contain tool calls
+   * @returns Parsed content with separated text and tool call segments
+   */
+  public parseToolCalls(content: string): IParsedContent {
+    const segments: IParsedSegment[] = [];
+    const toolCallRegex = /<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/g;
+    
+    let lastIndex = 0;
+    let match;
+
+    while ((match = toolCallRegex.exec(content)) !== null) {
+      // Add text before the tool call
+      if (match.index > lastIndex) {
+        const textContent = content.substring(lastIndex, match.index);
+        if (textContent.trim()) {
+          segments.push({
+            type: 'text',
+            content: textContent
+          });
+        }
+      }
+
+      // Parse and add the tool call
+      try {
+        const toolCall = JSON.parse(match[1]) as IToolCall;
+        segments.push({
+          type: 'tool_call',
+          content: match[0],
+          toolCall: toolCall
+        });
+      } catch (error) {
+        // If JSON parsing fails, treat it as text
+        console.error('Failed to parse tool call JSON:', error);
+        segments.push({
+          type: 'text',
+          content: match[0]
+        });
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text after the last tool call
+    if (lastIndex < content.length) {
+      const textContent = content.substring(lastIndex);
+      if (textContent.trim()) {
+        segments.push({
+          type: 'text',
+          content: textContent
+        });
+      }
+    }
+
+    // If no tool calls were found, return the entire content as text
+    if (segments.length === 0) {
+      segments.push({
+        type: 'text',
+        content: content
+      });
+    }
+
+    return { segments };
   }
 }

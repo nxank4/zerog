@@ -10,7 +10,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:zerog.chatView"
+    "onView:zerog.chatView",
+    "onView:zerog.historyView"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -29,6 +30,10 @@
           "type": "webview",
           "id": "zerog.chatView",
           "name": "AI Chat"
+        },
+        {
+          "id": "zerog.historyView",
+          "name": "History"
         }
       ]
     },
@@ -40,8 +45,80 @@
       {
         "command": "zerog.inlineEdit",
         "title": "Zero-G: Inline Edit"
+      },
+      {
+        "command": "zerog.acceptDiff",
+        "title": "Accept AI Suggestion",
+        "icon": "$(check)"
+      },
+      {
+        "command": "zerog.discardDiff",
+        "title": "Discard AI Suggestion",
+        "icon": "$(close)"
+      },
+      {
+        "command": "zerog.newChat",
+        "title": "Zero-G: New Chat",
+        "icon": "$(add)"
+      },
+      {
+        "command": "zerog.openSession",
+        "title": "Zero-G: Open Session"
+      },
+      {
+        "command": "zerog.deleteSession",
+        "title": "Delete Session",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "zerog.renameSession",
+        "title": "Rename Session",
+        "icon": "$(edit)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "zerog.newChat",
+          "when": "view == zerog.historyView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "zerog.renameSession",
+          "when": "viewItem == session",
+          "group": "inline@1"
+        },
+        {
+          "command": "zerog.deleteSession",
+          "when": "viewItem == session",
+          "group": "inline@2"
+        },
+        {
+          "command": "zerog.renameSession",
+          "when": "viewItem == session",
+          "group": "1_modification@1"
+        },
+        {
+          "command": "zerog.deleteSession",
+          "when": "viewItem == session",
+          "group": "1_modification@2"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "zerog.acceptDiff",
+          "group": "navigation@1",
+          "when": "zerog.diffReviewActive"
+        },
+        {
+          "command": "zerog.discardDiff",
+          "group": "navigation@2",
+          "when": "zerog.diffReviewActive"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "zerog.inlineEdit",
