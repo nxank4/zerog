@@ -199,25 +199,70 @@ class SidebarProvider implements vscode.WebviewViewProvider {
     const model = config.get<string>('model', 'claude-opus-4-6-thinking');
     const systemPrompt = config.get<string>('systemPrompt', 'You are a helpful coding assistant.');
 
+    // Handle slash commands
+    let processedMessage = userMessage;
+    let displayMessage = userMessage;
+    
+    if (userMessage.startsWith('/')) {
+      const command = userMessage.split(' ')[0].toLowerCase();
+      const args = userMessage.slice(command.length).trim();
+      
+      switch (command) {
+        case '/fix':
+          processedMessage = 'Fix the bugs in this code and explain what was wrong and how you fixed it.';
+          displayMessage = '🔧 /fix';
+          break;
+        case '/explain':
+          processedMessage = 'Explain what this code does in simple terms. Break down the logic step by step.';
+          displayMessage = '📖 /explain';
+          break;
+        case '/refactor':
+          processedMessage = 'Refactor this code for better readability, performance, and maintainability. Explain the improvements you made.';
+          displayMessage = '⚡ /refactor';
+          break;
+        case '/optimize':
+          processedMessage = 'Optimize this code for better performance. Identify bottlenecks and suggest improvements.';
+          displayMessage = '🚀 /optimize';
+          break;
+        case '/document':
+          processedMessage = 'Add comprehensive documentation to this code including docstrings, comments, and usage examples.';
+          displayMessage = '📝 /document';
+          break;
+        case '/test':
+          processedMessage = 'Generate unit tests for this code. Include edge cases and error handling.';
+          displayMessage = '🧪 /test';
+          break;
+        default:
+          // Unknown command, use as is
+          processedMessage = userMessage;
+          displayMessage = userMessage;
+      }
+      
+      // Append any additional args if provided
+      if (args) {
+        processedMessage += ' ' + args;
+      }
+    }
+
     // Gather structured context
     const { contextInfo, metadata } = this._gatherContext();
 
     // Construct enhanced user message with structured context
     let fullMessage = '';
     if (metadata.hasContext) {
-      fullMessage = contextInfo + 'User Query: ' + userMessage;
+      fullMessage = contextInfo + 'User Query: ' + processedMessage;
     } else {
-      fullMessage = userMessage;
+      fullMessage = processedMessage;
     }
 
     // Add user message to history
     this._messages.push({ role: 'user', content: fullMessage });
 
-    // Update UI with user message (show only query, not full context)
+    // Update UI with user message (show display message for commands)
     this._view?.webview.postMessage({
       type: 'addMessage',
       role: 'user',
-      content: userMessage,
+      content: displayMessage,
       html: false
     });
 
@@ -600,6 +645,46 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '      background-color: var(--vscode-button-hoverBackground);\n' +
 '      color: var(--vscode-button-foreground);\n' +
 '    }\n' +
+'    .command-hints {\n' +
+'      position: absolute;\n' +
+'      bottom: 100%;\n' +
+'      left: 0;\n' +
+'      right: 0;\n' +
+'      background-color: var(--vscode-editorWidget-background);\n' +
+'      border: 1px solid var(--vscode-widget-border);\n' +
+'      border-radius: 4px;\n' +
+'      margin-bottom: 4px;\n' +
+'      display: none;\n' +
+'      max-height: 200px;\n' +
+'      overflow-y: auto;\n' +
+'    }\n' +
+'    .command-hints.active {\n' +
+'      display: block;\n' +
+'    }\n' +
+'    .command-hint-item {\n' +
+'      padding: 8px 12px;\n' +
+'      cursor: pointer;\n' +
+'      border-bottom: 1px solid var(--vscode-widget-border);\n' +
+'    }\n' +
+'    .command-hint-item:last-child {\n' +
+'      border-bottom: none;\n' +
+'    }\n' +
+'    .command-hint-item:hover {\n' +
+'      background-color: var(--vscode-list-hoverBackground);\n' +
+'    }\n' +
+'    .command-hint-name {\n' +
+'      font-weight: 600;\n' +
+'      color: var(--vscode-textLink-foreground);\n' +
+'      font-size: 13px;\n' +
+'    }\n' +
+'    .command-hint-desc {\n' +
+'      font-size: 11px;\n' +
+'      color: var(--vscode-descriptionForeground);\n' +
+'      margin-top: 2px;\n' +
+'    }\n' +
+'    #input-container {\n' +
+'      position: relative;\n' +
+'    }\n' +
 '  </style>\n' +
 '</head>\n' +
 '<body>\n' +
@@ -612,7 +697,8 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '    <button class="clear-context-btn" id="clear-context-btn">Clear Context</button>\n' +
 '  </div>\n' +
 '  <div id="input-container">\n' +
-'    <input type="text" id="message-input" placeholder="Ask me anything..." />\n' +
+'    <div class="command-hints" id="command-hints"></div>\n' +
+'    <input type="text" id="message-input" placeholder="Ask me anything or type / for commands..." />\n' +
 '    <button id="send-button">Send</button>\n' +
 '  </div>\n' +
 '  <script>\n' +
@@ -623,6 +709,15 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '    const loading = document.getElementById(\'loading\');\n' +
 '    const contextText = document.getElementById(\'context-text\');\n' +
 '    const clearContextBtn = document.getElementById(\'clear-context-btn\');\n' +
+'    const commandHints = document.getElementById(\'command-hints\');\n' +
+'    const commands = [\n' +
+'      { name: \'/fix\', icon: \'🔧\', desc: \'Fix bugs in the selected code\' },\n' +
+'      { name: \'/explain\', icon: \'📖\', desc: \'Explain code in simple terms\' },\n' +
+'      { name: \'/refactor\', icon: \'⚡\', desc: \'Improve code readability and performance\' },\n' +
+'      { name: \'/optimize\', icon: \'🚀\', desc: \'Optimize code for better performance\' },\n' +
+'      { name: \'/document\', icon: \'📝\', desc: \'Add documentation and comments\' },\n' +
+'      { name: \'/test\', icon: \'🧪\', desc: \'Generate unit tests\' }\n' +
+'    ];\n' +
 '    function sendMessage() {\n' +
 '      const message = messageInput.value.trim();\n' +
 '      if (!message) return;\n' +
@@ -633,12 +728,49 @@ class SidebarProvider implements vscode.WebviewViewProvider {
 '    clearContextBtn.addEventListener(\'click\', () => {\n' +
 '      vscode.postMessage({ type: \'clearContext\' });\n' +
 '    });\n' +
+'    messageInput.addEventListener(\'input\', (e) => {\n' +
+'      const value = e.target.value;\n' +
+'      if (value.startsWith(\'/\') && value.length > 0) {\n' +
+'        showCommandHints(value);\n' +
+'      } else {\n' +
+'        hideCommandHints();\n' +
+'      }\n' +
+'    });\n' +
 '    messageInput.addEventListener(\'keypress\', (e) => {\n' +
 '      if (e.key === \'Enter\' && !e.shiftKey) {\n' +
 '        e.preventDefault();\n' +
+'        hideCommandHints();\n' +
 '        sendMessage();\n' +
 '      }\n' +
 '    });\n' +
+'    messageInput.addEventListener(\'blur\', () => {\n' +
+'      setTimeout(() => hideCommandHints(), 200);\n' +
+'    });\n' +
+'    function showCommandHints(input) {\n' +
+'      const searchTerm = input.toLowerCase();\n' +
+'      const filtered = commands.filter(cmd => cmd.name.startsWith(searchTerm));\n' +
+'      if (filtered.length === 0) {\n' +
+'        hideCommandHints();\n' +
+'        return;\n' +
+'      }\n' +
+'      commandHints.innerHTML = filtered.map(cmd => \n' +
+'        \'<div class="command-hint-item" data-command="\' + cmd.name + \'">\' +\n' +
+'          \'<div class="command-hint-name">\' + cmd.icon + \' \' + cmd.name + \'</div>\' +\n' +
+'          \'<div class="command-hint-desc">\' + cmd.desc + \'</div>\' +\n' +
+'        \'</div>\'\n' +
+'      ).join(\'\');\n' +
+'      commandHints.querySelectorAll(\'.command-hint-item\').forEach(item => {\n' +
+'        item.addEventListener(\'click\', () => {\n' +
+'          messageInput.value = item.dataset.command + \' \';\n' +
+'          messageInput.focus();\n' +
+'          hideCommandHints();\n' +
+'        });\n' +
+'      });\n' +
+'      commandHints.classList.add(\'active\');\n' +
+'    }\n' +
+'    function hideCommandHints() {\n' +
+'      commandHints.classList.remove(\'active\');\n' +
+'    }\n' +
 '    vscode.postMessage({ type: \'requestContext\' });\n' +
 '    let currentStreamingMessage = null;\n' +
 '    let currentStreamingContent = null;\n' +
