@@ -154,6 +154,16 @@
           "type": "boolean",
           "default": true,
           "description": "Enable AI-powered ghost text autocomplete (Copilot-style inline completions)"
+        },
+        "zerog.maxTokens": {
+          "type": "number",
+          "default": 4096,
+          "description": "Maximum number of tokens in chat responses"
+        },
+        "zerog.autocompleteDelay": {
+          "type": "number",
+          "default": 300,
+          "description": "Delay in milliseconds before triggering autocomplete"
         }
       }
     }

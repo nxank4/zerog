@@ -45,7 +45,8 @@ export class AIService {
       baseUrl: config.get<string>('baseUrl', 'http://localhost:8080'),
       authToken: config.get<string>('authToken', 'test'),
       model: config.get<string>('model', 'claude-opus-4-6-thinking'),
-      systemPrompt: config.get<string>('systemPrompt', 'You are a helpful coding assistant.')
+      systemPrompt: config.get<string>('systemPrompt', 'You are a helpful coding assistant.'),
+      maxTokens: config.get<number>('maxTokens', 4096)
     };
   }
 
@@ -183,7 +184,7 @@ Use this structure to understand the codebase organization and provide more cont
         config.baseUrl + '/v1/messages',
         {
           model: config.model,
-          max_tokens: 4096,
+          max_tokens: config.maxTokens,
           system: this._buildSystemPrompt(basePrompt),
           messages: messagesWithContext,
           stream: true

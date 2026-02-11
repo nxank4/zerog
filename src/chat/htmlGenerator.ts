@@ -32,6 +32,19 @@ ${getScript()}
  */
 function getStyles(): string {
   return `
+    /* ─── Theme Palette ───────────────────────────────────── */
+    :root {
+      --bright-snow: #f8f9faff;
+      --platinum: #e9ecefff;
+      --alabaster-grey: #dee2e6ff;
+      --pale-slate: #ced4daff;
+      --pale-slate-2: #adb5bdff;
+      --slate-grey: #6c757dff;
+      --iron-grey: #495057ff;
+      --gunmetal: #343a40ff;
+      --carbon-black: #212529ff;
+    }
+
     /* ─── Reset & Body ──────────────────────────────────── */
     * {
       box-sizing: border-box;
@@ -41,8 +54,8 @@ function getStyles(): string {
     body {
       font-family: var(--vscode-font-family);
       font-size: var(--vscode-font-size);
-      color: var(--vscode-foreground);
-      background-color: var(--vscode-editor-background);
+      color: var(--bright-snow);
+      background-color: var(--carbon-black);
       height: 100vh;
       display: flex;
       flex-direction: column;
@@ -57,8 +70,8 @@ function getStyles(): string {
       height: 40px;
       flex-shrink: 0;
       padding: 0 8px;
-      background-color: var(--vscode-sideBar-background);
-      border-bottom: 1px solid var(--vscode-widget-border);
+      background-color: var(--gunmetal);
+      border-bottom: 1px solid var(--iron-grey);
       gap: 4px;
     }
     .header-left, .header-right {
@@ -75,7 +88,7 @@ function getStyles(): string {
     .header-btn {
       background: transparent;
       border: none;
-      color: var(--vscode-foreground);
+      color: var(--bright-snow);
       cursor: pointer;
       padding: 4px 6px;
       border-radius: 4px;
@@ -86,13 +99,13 @@ function getStyles(): string {
       opacity: 0.8;
     }
     .header-btn:hover {
-      background-color: var(--vscode-list-hoverBackground);
+      background-color: var(--iron-grey);
       opacity: 1;
     }
     #session-title {
       font-size: 12px;
       font-weight: 600;
-      color: var(--vscode-foreground);
+      color: var(--bright-snow);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -102,9 +115,9 @@ function getStyles(): string {
     #session-title-input {
       font-size: 12px;
       font-weight: 600;
-      color: var(--vscode-input-foreground);
-      background: var(--vscode-input-background);
-      border: 1px solid var(--vscode-focusBorder);
+      color: var(--bright-snow);
+      background: var(--gunmetal);
+      border: 1px solid var(--pale-slate-2);
       border-radius: 3px;
       padding: 2px 6px;
       text-align: center;
@@ -117,7 +130,7 @@ function getStyles(): string {
       flex: 1;
       overflow-y: auto;
       padding: 10px;
-      background-color: var(--vscode-editor-background);
+      background-color: var(--carbon-black);
     }
 
     /* ─── Messages ──────────────────────────────────────── */
@@ -138,17 +151,17 @@ function getStyles(): string {
       border-radius: 8px;
       line-height: 1.5;
       word-wrap: break-word;
-      border: 1px solid var(--vscode-widget-border);
+      border: 1px solid var(--iron-grey);
     }
     .message.user .message-bubble {
-      background-color: var(--vscode-editor-background);
-      color: var(--vscode-foreground);
-      border-left: 3px solid var(--vscode-button-background);
+      background-color: var(--carbon-black);
+      color: var(--bright-snow);
+      border-left: 3px solid var(--slate-grey);
     }
     .message.assistant .message-bubble {
-      background-color: var(--vscode-input-background);
-      color: var(--vscode-foreground);
-      border-left: 3px solid var(--vscode-focusBorder);
+      background-color: var(--gunmetal);
+      color: var(--bright-snow);
+      border-left: 3px solid var(--pale-slate-2);
     }
     .message-header {
       font-size: 11px;
@@ -160,22 +173,22 @@ function getStyles(): string {
       gap: 4px;
     }
     .message.user .message-header {
-      color: var(--vscode-button-background);
+      color: var(--slate-grey);
     }
     .message.assistant .message-header {
-      color: var(--vscode-focusBorder);
+      color: var(--pale-slate-2);
     }
     .bubble-spinner {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       padding: 4px 0;
-      color: var(--vscode-descriptionForeground);
+      color: var(--pale-slate-2);
       font-family: var(--vscode-editor-font-family), monospace;
       font-size: 13px;
     }
     .bubble-spinner .spinner-char {
-      color: var(--vscode-textLink-foreground);
+      color: var(--pale-slate);
       font-size: 15px;
     }
     .message-content {
@@ -200,7 +213,7 @@ function getStyles(): string {
     .edit-message-btn {
       background: transparent;
       border: none;
-      color: var(--vscode-descriptionForeground);
+      color: var(--pale-slate-2);
       cursor: pointer;
       font-size: 12px;
       padding: 2px 4px;
@@ -212,7 +225,7 @@ function getStyles(): string {
       opacity: 1;
     }
     .edit-message-btn:hover {
-      color: var(--vscode-foreground);
+      color: var(--bright-snow);
     }
 
     /* ─── Code Blocks ───────────────────────────────────── */
@@ -224,12 +237,12 @@ function getStyles(): string {
     }
     .message-content pre.hljs {
       padding: 32px 12px 12px 12px;
-      background-color: var(--vscode-textCodeBlock-background);
-      border: 1px solid var(--vscode-widget-border);
+      background-color: var(--gunmetal);
+      border: 1px solid var(--iron-grey);
       overflow-x: auto;
     }
     .message-content code:not(.hljs) {
-      background-color: var(--vscode-textCodeBlock-background);
+      background-color: var(--gunmetal);
       padding: 2px 6px;
       border-radius: 3px;
       font-family: var(--vscode-editor-font-family);
@@ -248,8 +261,8 @@ function getStyles(): string {
       opacity: 1;
     }
     .code-action-btn {
-      background-color: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
+      background-color: var(--slate-grey);
+      color: var(--bright-snow);
       border: none;
       padding: 4px 8px;
       border-radius: 3px;
@@ -258,24 +271,24 @@ function getStyles(): string {
       font-weight: 600;
     }
     .code-action-btn:hover {
-      background-color: var(--vscode-button-hoverBackground);
+      background-color: var(--pale-slate-2);
     }
     .code-action-btn:active {
       opacity: 0.8;
     }
     .code-action-btn-run {
-      background-color: var(--vscode-testing-runAction);
-      color: var(--vscode-button-foreground);
+      background-color: var(--slate-grey);
+      color: var(--bright-snow);
     }
     .code-action-btn-run:hover {
-      background-color: var(--vscode-button-hoverBackground);
+      background-color: var(--pale-slate-2);
     }
 
     /* ─── Loading & Spinner ─────────────────────────────── */
     .loading {
       display: none;
       padding: 10px 14px;
-      color: var(--vscode-descriptionForeground);
+      color: var(--pale-slate-2);
       font-family: var(--vscode-editor-font-family), monospace;
       font-size: 13px;
       align-items: center;
@@ -288,19 +301,19 @@ function getStyles(): string {
       display: inline-block;
       width: 1em;
       text-align: center;
-      color: var(--vscode-textLink-foreground);
+      color: var(--pale-slate);
       font-size: 15px;
     }
     .loading-text {
-      color: var(--vscode-descriptionForeground);
+      color: var(--pale-slate-2);
     }
 
     /* ─── Plan Container ────────────────────────────────── */
     #plan-container {
       display: none;
       padding: 10px 12px;
-      background-color: var(--vscode-editorWidget-background);
-      border: 1px solid var(--vscode-widget-border);
+      background-color: var(--gunmetal);
+      border: 1px solid var(--iron-grey);
       border-radius: 6px;
       margin-bottom: 10px;
       max-height: 250px;
@@ -318,11 +331,11 @@ function getStyles(): string {
     .plan-title {
       font-weight: 600;
       font-size: 12px;
-      color: var(--vscode-foreground);
+      color: var(--bright-snow);
     }
     .plan-progress {
       font-size: 11px;
-      color: var(--vscode-descriptionForeground);
+      color: var(--pale-slate-2);
     }
     .plan-task {
       display: flex;
@@ -334,7 +347,7 @@ function getStyles(): string {
       cursor: pointer;
     }
     .plan-task:hover {
-      background-color: var(--vscode-list-hoverBackground);
+      background-color: var(--iron-grey);
     }
     .plan-task.done {
       opacity: 0.6;
@@ -343,17 +356,17 @@ function getStyles(): string {
       text-decoration: line-through;
     }
     .plan-task.in_progress {
-      background-color: var(--vscode-inputValidation-infoBackground);
+      background-color: var(--iron-grey);
     }
     .plan-task-checkbox {
       width: 14px;
       height: 14px;
-      accent-color: var(--vscode-button-background);
+      accent-color: var(--slate-grey);
       cursor: pointer;
     }
     .plan-task-id {
       font-weight: 600;
-      color: var(--vscode-descriptionForeground);
+      color: var(--pale-slate-2);
       min-width: 20px;
     }
     .plan-task-text {
@@ -367,24 +380,24 @@ function getStyles(): string {
       text-transform: uppercase;
     }
     .plan-task-status.pending {
-      background-color: var(--vscode-badge-background);
-      color: var(--vscode-badge-foreground);
+      background-color: var(--iron-grey);
+      color: var(--platinum);
     }
     .plan-task-status.in_progress {
-      background-color: var(--vscode-inputValidation-warningBackground);
-      color: var(--vscode-inputValidation-warningForeground);
+      background-color: var(--iron-grey);
+      color: var(--platinum);
     }
     .plan-task-status.done {
-      background-color: var(--vscode-testing-iconPassed);
-      color: var(--vscode-button-foreground);
+      background-color: var(--pale-slate-2);
+      color: var(--bright-snow);
     }
 
     /* ─── Changes Container ─────────────────────────────── */
     #changes-container {
       display: none;
       padding: 10px 12px;
-      background-color: var(--vscode-editorWidget-background);
-      border: 1px solid var(--vscode-widget-border);
+      background-color: var(--gunmetal);
+      border: 1px solid var(--iron-grey);
       border-radius: 6px;
       margin-bottom: 10px;
     }
@@ -395,7 +408,7 @@ function getStyles(): string {
       font-weight: 600;
       font-size: 12px;
       margin-bottom: 8px;
-      color: var(--vscode-foreground);
+      color: var(--bright-snow);
     }
     .change-item {
       display: flex;
@@ -407,7 +420,7 @@ function getStyles(): string {
       font-size: 12px;
     }
     .change-item:hover {
-      background-color: var(--vscode-list-hoverBackground);
+      background-color: var(--iron-grey);
     }
     .change-action {
       font-size: 10px;
@@ -416,12 +429,12 @@ function getStyles(): string {
       font-weight: 600;
     }
     .change-action.modified {
-      background-color: var(--vscode-inputValidation-warningBackground);
-      color: var(--vscode-inputValidation-warningForeground);
+      background-color: var(--iron-grey);
+      color: var(--platinum);
     }
     .change-action.created {
-      background-color: var(--vscode-testing-iconPassed);
-      color: var(--vscode-button-foreground);
+      background-color: var(--pale-slate-2);
+      color: var(--bright-snow);
     }
     .changes-actions {
       display: flex;
@@ -437,22 +450,22 @@ function getStyles(): string {
       font-weight: 600;
     }
     .btn-accept-all {
-      background-color: var(--vscode-testing-iconPassed);
-      color: var(--vscode-button-foreground);
+      background-color: var(--pale-slate-2);
+      color: var(--bright-snow);
     }
     .btn-reject {
-      background-color: var(--vscode-inputValidation-errorBackground);
-      color: var(--vscode-inputValidation-errorForeground);
+      background-color: var(--iron-grey);
+      color: var(--platinum);
     }
     .btn-apply-selected {
-      background-color: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
+      background-color: var(--slate-grey);
+      color: var(--bright-snow);
     }
 
     /* ─── Thinking Accordion ────────────────────────────── */
     .thinking-accordion {
       margin: 8px 0;
-      border: 1px solid var(--vscode-widget-border);
+      border: 1px solid var(--iron-grey);
       border-radius: 6px;
       overflow: hidden;
     }
@@ -461,15 +474,15 @@ function getStyles(): string {
       align-items: center;
       gap: 6px;
       padding: 6px 10px;
-      background-color: var(--vscode-editorWidget-background);
+      background-color: var(--gunmetal);
       cursor: pointer;
       font-size: 11px;
-      color: var(--vscode-descriptionForeground);
+      color: var(--pale-slate-2);
       font-weight: 600;
       user-select: none;
     }
     .thinking-toggle:hover {
-      background-color: var(--vscode-list-hoverBackground);
+      background-color: var(--iron-grey);
     }
     .thinking-toggle .arrow {
       transition: transform 0.2s;
@@ -482,11 +495,11 @@ function getStyles(): string {
       display: none;
       padding: 8px 10px;
       font-size: 12px;
-      color: var(--vscode-descriptionForeground);
+      color: var(--pale-slate-2);
       white-space: pre-wrap;
       max-height: 200px;
       overflow-y: auto;
-      background-color: var(--vscode-editor-background);
+      background-color: var(--carbon-black);
     }
     .thinking-accordion.open .thinking-body {
       display: block;
@@ -495,24 +508,24 @@ function getStyles(): string {
     /* ─── File Change Card ──────────────────────────────── */
     .file-change-card {
       margin: 8px 0;
-      border: 1px solid var(--vscode-widget-border);
+      border: 1px solid var(--iron-grey);
       border-radius: 6px;
       overflow: hidden;
-      background-color: var(--vscode-editorWidget-background);
+      background-color: var(--gunmetal);
     }
     .file-change-header {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      background-color: var(--vscode-editor-background);
-      border-bottom: 1px solid var(--vscode-widget-border);
+      background-color: var(--carbon-black);
+      border-bottom: 1px solid var(--iron-grey);
     }
     .file-change-name {
       flex: 1;
       font-size: 12px;
       font-weight: 600;
-      color: var(--vscode-foreground);
+      color: var(--bright-snow);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -523,8 +536,8 @@ function getStyles(): string {
       border-radius: 6px;
       font-weight: 600;
       text-transform: uppercase;
-      background-color: var(--vscode-testing-iconPassed);
-      color: var(--vscode-button-foreground);
+      background-color: var(--pale-slate-2);
+      color: var(--bright-snow);
     }
     .file-change-actions {
       display: flex;
@@ -540,15 +553,15 @@ function getStyles(): string {
       font-weight: 600;
     }
     .file-change-btn-diff {
-      background-color: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
+      background-color: var(--slate-grey);
+      color: var(--bright-snow);
     }
     .file-change-btn-diff:hover {
-      background-color: var(--vscode-button-hoverBackground);
+      background-color: var(--pale-slate-2);
     }
     .file-change-btn-reject {
-      background-color: var(--vscode-inputValidation-errorBackground);
-      color: var(--vscode-inputValidation-errorForeground);
+      background-color: var(--iron-grey);
+      color: var(--platinum);
     }
     .file-change-btn-reject:hover {
       opacity: 0.8;
@@ -557,24 +570,24 @@ function getStyles(): string {
     /* ─── Tool Call Widget ──────────────────────────────── */
     .tool-call-widget {
       margin: 8px 0;
-      border: 1px solid var(--vscode-widget-border);
+      border: 1px solid var(--iron-grey);
       border-radius: 6px;
       overflow: hidden;
-      background-color: var(--vscode-editorWidget-background);
+      background-color: var(--gunmetal);
     }
     .tool-call-header {
       padding: 6px 10px;
       font-size: 11px;
       font-weight: 600;
-      color: var(--vscode-descriptionForeground);
-      background-color: var(--vscode-editor-background);
-      border-bottom: 1px solid var(--vscode-widget-border);
+      color: var(--pale-slate-2);
+      background-color: var(--carbon-black);
+      border-bottom: 1px solid var(--iron-grey);
     }
     .tool-call-command {
       padding: 8px 10px;
       font-family: var(--vscode-editor-font-family);
       font-size: 12px;
-      color: var(--vscode-foreground);
+      color: var(--bright-snow);
     }
     .tool-call-actions {
       display: flex;
@@ -590,20 +603,20 @@ function getStyles(): string {
       font-weight: 600;
     }
     .tool-call-btn-run {
-      background-color: var(--vscode-testing-runAction);
-      color: var(--vscode-button-foreground);
+      background-color: var(--slate-grey);
+      color: var(--bright-snow);
     }
     .tool-call-btn-copy {
-      background-color: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
+      background-color: var(--slate-grey);
+      color: var(--bright-snow);
     }
 
     /* ─── Footer (Input Zone) ───────────────────────────── */
     #input-zone {
       flex-shrink: 0;
-      border-top: 1px solid var(--vscode-widget-border);
+      border-top: 1px solid var(--iron-grey);
       padding: 10px;
-      background-color: var(--vscode-sideBar-background);
+      background-color: var(--gunmetal);
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -617,9 +630,9 @@ function getStyles(): string {
       min-height: 28px;
     }
     #mode-select {
-      background-color: var(--vscode-dropdown-background);
-      color: var(--vscode-dropdown-foreground);
-      border: 1px solid var(--vscode-dropdown-border);
+      background-color: var(--gunmetal);
+      color: var(--bright-snow);
+      border: 1px solid var(--iron-grey);
       border-radius: 4px;
       padding: 3px 8px;
       font-size: 11px;
@@ -629,7 +642,7 @@ function getStyles(): string {
       flex-shrink: 0;
     }
     #mode-select:focus {
-      border-color: var(--vscode-focusBorder);
+      border-color: var(--pale-slate-2);
     }
     .context-area {
       display: flex;
@@ -643,8 +656,8 @@ function getStyles(): string {
       max-height: 48px;
     }
     .context-badge {
-      background-color: var(--vscode-badge-background);
-      color: var(--vscode-badge-foreground);
+      background-color: var(--iron-grey);
+      color: var(--platinum);
       padding: 2px 8px;
       border-radius: 10px;
       font-size: 11px;
@@ -672,9 +685,9 @@ function getStyles(): string {
     #message-input {
       width: 100%;
       padding: 8px 12px;
-      background-color: var(--vscode-input-background);
-      color: var(--vscode-input-foreground);
-      border: 1px solid var(--vscode-input-border);
+      background-color: var(--gunmetal);
+      color: var(--bright-snow);
+      border: 1px solid var(--iron-grey);
       border-radius: 6px;
       outline: none;
       font-family: var(--vscode-font-family);
@@ -686,7 +699,7 @@ function getStyles(): string {
       line-height: 1.4;
     }
     #message-input:focus {
-      border-color: var(--vscode-focusBorder);
+      border-color: var(--pale-slate-2);
     }
     .input-row-3 {
       justify-content: space-between;
@@ -712,28 +725,28 @@ function getStyles(): string {
     }
     #attach-button {
       background-color: transparent;
-      color: var(--vscode-foreground);
-      border: 1px solid var(--vscode-widget-border);
+      color: var(--bright-snow);
+      border: 1px solid var(--iron-grey);
       font-size: 14px;
       padding: 4px 8px;
     }
     #attach-button:hover {
-      background-color: var(--vscode-list-hoverBackground);
+      background-color: var(--iron-grey);
     }
     #send-button {
-      background-color: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
+      background-color: var(--slate-grey);
+      color: var(--bright-snow);
     }
     #send-button:hover {
-      background-color: var(--vscode-button-hoverBackground);
+      background-color: var(--pale-slate-2);
     }
     #send-button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
     #stop-button {
-      background-color: var(--vscode-inputValidation-errorBackground);
-      color: var(--vscode-inputValidation-errorForeground);
+      background-color: var(--iron-grey);
+      color: var(--platinum);
       display: none;
     }
 
@@ -743,8 +756,8 @@ function getStyles(): string {
       bottom: 100%;
       left: 0;
       right: 0;
-      background-color: var(--vscode-editorWidget-background);
-      border: 1px solid var(--vscode-widget-border);
+      background-color: var(--gunmetal);
+      border: 1px solid var(--iron-grey);
       border-radius: 4px;
       margin-bottom: 4px;
       display: none;
@@ -758,22 +771,22 @@ function getStyles(): string {
     .command-hint-item {
       padding: 8px 12px;
       cursor: pointer;
-      border-bottom: 1px solid var(--vscode-widget-border);
+      border-bottom: 1px solid var(--iron-grey);
     }
     .command-hint-item:last-child {
       border-bottom: none;
     }
     .command-hint-item:hover {
-      background-color: var(--vscode-list-hoverBackground);
+      background-color: var(--iron-grey);
     }
     .command-hint-name {
       font-weight: 600;
-      color: var(--vscode-textLink-foreground);
+      color: var(--pale-slate);
       font-size: 13px;
     }
     .command-hint-desc {
       font-size: 11px;
-      color: var(--vscode-descriptionForeground);
+      color: var(--pale-slate-2);
       margin-top: 2px;
     }
 
@@ -784,8 +797,8 @@ function getStyles(): string {
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: rgba(0, 122, 204, 0.1);
-      border: 3px dashed var(--vscode-focusBorder);
+      background-color: rgba(173, 181, 189, 0.1);
+      border: 3px dashed var(--pale-slate-2);
       display: none;
       align-items: center;
       justify-content: center;
@@ -798,7 +811,7 @@ function getStyles(): string {
     .drop-zone-text {
       font-size: 24px;
       font-weight: 600;
-      color: var(--vscode-focusBorder);
+      color: var(--pale-slate-2);
     }
 
     /* ─── File & Image Chips ────────────────────────────── */
@@ -806,8 +819,8 @@ function getStyles(): string {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background-color: var(--vscode-badge-background);
-      color: var(--vscode-badge-foreground);
+      background-color: var(--iron-grey);
+      color: var(--platinum);
       padding: 2px 8px;
       border-radius: 12px;
       font-size: 11px;
@@ -825,8 +838,8 @@ function getStyles(): string {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background-color: var(--vscode-badge-background);
-      color: var(--vscode-badge-foreground);
+      background-color: var(--iron-grey);
+      color: var(--platinum);
       padding: 2px 8px;
       border-radius: 12px;
       font-size: 11px;
@@ -845,6 +858,185 @@ function getStyles(): string {
     }
     .image-chip-remove:hover {
       opacity: 1;
+    }
+
+    /* ─── Settings Panel ───────────────────────────────── */
+    #settings-panel {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 100;
+      background-color: var(--carbon-black);
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #settings-panel.active {
+      display: flex;
+    }
+    .settings-header {
+      display: flex;
+      align-items: center;
+      height: 40px;
+      flex-shrink: 0;
+      padding: 0 8px;
+      background-color: var(--gunmetal);
+      border-bottom: 1px solid var(--iron-grey);
+      gap: 8px;
+    }
+    .settings-back-btn {
+      background: transparent;
+      border: none;
+      color: var(--bright-snow);
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.8;
+    }
+    .settings-back-btn:hover {
+      background-color: var(--iron-grey);
+      opacity: 1;
+    }
+    .settings-header-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--bright-snow);
+    }
+    .settings-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .settings-group {
+      margin-bottom: 20px;
+    }
+    .settings-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--pale-slate-2);
+      margin-bottom: 10px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--iron-grey);
+    }
+    .settings-item {
+      margin-bottom: 14px;
+    }
+    .settings-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--bright-snow);
+      margin-bottom: 2px;
+    }
+    .settings-desc {
+      font-size: 11px;
+      color: var(--pale-slate-2);
+      margin-bottom: 6px;
+    }
+    .settings-input {
+      width: 100%;
+      padding: 6px 10px;
+      background-color: var(--gunmetal);
+      color: var(--bright-snow);
+      border: 1px solid var(--iron-grey);
+      border-radius: 4px;
+      font-family: var(--vscode-font-family);
+      font-size: 12px;
+      outline: none;
+    }
+    .settings-input:focus {
+      border-color: var(--pale-slate-2);
+    }
+    .settings-textarea {
+      width: 100%;
+      padding: 6px 10px;
+      background-color: var(--gunmetal);
+      color: var(--bright-snow);
+      border: 1px solid var(--iron-grey);
+      border-radius: 4px;
+      font-family: var(--vscode-font-family);
+      font-size: 12px;
+      outline: none;
+      resize: vertical;
+      min-height: 60px;
+    }
+    .settings-textarea:focus {
+      border-color: var(--pale-slate-2);
+    }
+    .settings-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .settings-toggle-left {
+      flex: 1;
+    }
+    .settings-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .settings-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .settings-switch-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--iron-grey);
+      border-radius: 20px;
+      transition: background-color 0.2s;
+    }
+    .settings-switch-slider:before {
+      content: "";
+      position: absolute;
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--bright-snow);
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .settings-switch input:checked + .settings-switch-slider {
+      background-color: var(--pale-slate-2);
+    }
+    .settings-switch input:checked + .settings-switch-slider:before {
+      transform: translateX(16px);
+    }
+    .settings-advanced-btn {
+      width: 100%;
+      padding: 8px 12px;
+      background-color: var(--gunmetal);
+      color: var(--bright-snow);
+      border: 1px solid var(--iron-grey);
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+    .settings-advanced-btn:hover {
+      background-color: var(--iron-grey);
+    }
+    .settings-version {
+      font-size: 11px;
+      color: var(--slate-grey);
+      text-align: center;
+      margin-top: 8px;
     }
   `;
 }
@@ -920,6 +1112,71 @@ function getBodyContent(): string {
       </div>
     </div>
   </footer>
+
+  <div id="settings-panel">
+    <div class="settings-header">
+      <button class="settings-back-btn" id="settings-back-btn" title="Back to chat">&#8592;</button>
+      <span class="settings-header-title">Settings</span>
+    </div>
+    <div class="settings-body">
+      <div class="settings-group">
+        <div class="settings-group-title">Provider</div>
+        <div class="settings-item">
+          <div class="settings-label">API Endpoint</div>
+          <div class="settings-desc">Base URL for the AI proxy</div>
+          <input type="text" class="settings-input" id="setting-baseUrl" data-key="baseUrl">
+        </div>
+        <div class="settings-item">
+          <div class="settings-label">API Key</div>
+          <div class="settings-desc">Authentication token for the AI proxy</div>
+          <input type="password" class="settings-input" id="setting-authToken" data-key="authToken">
+        </div>
+        <div class="settings-item">
+          <div class="settings-label">Model</div>
+          <div class="settings-desc">AI model identifier</div>
+          <input type="text" class="settings-input" id="setting-model" data-key="model">
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group-title">Chat</div>
+        <div class="settings-item">
+          <div class="settings-label">System Prompt</div>
+          <div class="settings-desc">Instructions given to the AI assistant</div>
+          <textarea class="settings-textarea" id="setting-systemPrompt" data-key="systemPrompt" rows="3"></textarea>
+        </div>
+        <div class="settings-item">
+          <div class="settings-label">Max Response Length</div>
+          <div class="settings-desc">Maximum tokens in chat responses</div>
+          <input type="number" class="settings-input" id="setting-maxTokens" data-key="maxTokens" min="256" max="32768">
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group-title">Autocomplete</div>
+        <div class="settings-item settings-toggle">
+          <div class="settings-toggle-left">
+            <div class="settings-label">Enable Autocomplete</div>
+            <div class="settings-desc">Ghost text inline completions</div>
+          </div>
+          <label class="settings-switch">
+            <input type="checkbox" id="setting-enableAutocomplete" data-key="enableAutocomplete">
+            <span class="settings-switch-slider"></span>
+          </label>
+        </div>
+        <div class="settings-item">
+          <div class="settings-label">Autocomplete Delay</div>
+          <div class="settings-desc">Debounce delay in milliseconds</div>
+          <input type="number" class="settings-input" id="setting-autocompleteDelay" data-key="autocompleteDelay" min="50" max="2000">
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group-title">About / Advanced</div>
+        <div class="settings-item">
+          <button class="settings-advanced-btn" id="settings-open-advanced">Open Advanced Settings</button>
+        </div>
+        <div class="settings-version" id="settings-version">Zero-G v0.0.1</div>
+      </div>
+    </div>
+  </div>
   `;
 }
 
@@ -1453,6 +1710,19 @@ function getScript(): string {
           clearAllFileChips();
           clearAllImageChips();
           break;
+        case 'loadSettings':
+          var s = message.settings || {};
+          document.getElementById('setting-baseUrl').value = s.baseUrl || '';
+          document.getElementById('setting-authToken').value = s.authToken || '';
+          document.getElementById('setting-model').value = s.model || '';
+          document.getElementById('setting-systemPrompt').value = s.systemPrompt || '';
+          document.getElementById('setting-maxTokens').value = s.maxTokens || 4096;
+          document.getElementById('setting-enableAutocomplete').checked = s.enableAutocomplete !== false;
+          document.getElementById('setting-autocompleteDelay').value = s.autocompleteDelay || 300;
+          if (s.version) {
+            document.getElementById('settings-version').textContent = 'Zero-G v' + s.version;
+          }
+          break;
       }
     });
 
@@ -1812,6 +2082,46 @@ function getScript(): string {
       chatContainer.appendChild(messageDiv);
       scrollToBottom();
     }
+
+    /* ── Settings Panel ─────────────────────────────────── */
+    var settingsPanel = document.getElementById('settings-panel');
+
+    function showSettings() {
+      settingsPanel.classList.add('active');
+      vscode.postMessage({ type: 'openSettings' });
+    }
+
+    function hideSettings() {
+      settingsPanel.classList.remove('active');
+    }
+
+    document.getElementById('settings-back-btn').addEventListener('click', hideSettings);
+    document.getElementById('settings-btn').addEventListener('click', function() {
+      showSettings();
+    });
+    document.getElementById('settings-open-advanced').addEventListener('click', function() {
+      vscode.postMessage({ type: 'openAdvancedSettings' });
+    });
+
+    // Auto-save on change for text/number inputs (with debounce)
+    var settingTimers = {};
+    document.querySelectorAll('#settings-panel .settings-input, #settings-panel .settings-textarea').forEach(function(input) {
+      input.addEventListener('input', function() {
+        var key = input.dataset.key;
+        if (!key) return;
+        if (settingTimers[key]) clearTimeout(settingTimers[key]);
+        settingTimers[key] = setTimeout(function() {
+          var val = input.value;
+          if (input.type === 'number') val = Number(val);
+          vscode.postMessage({ type: 'saveSettings', value: { key: key, value: val } });
+        }, 500);
+      });
+    });
+
+    // Auto-save on change for toggles
+    document.getElementById('setting-enableAutocomplete').addEventListener('change', function(e) {
+      vscode.postMessage({ type: 'saveSettings', value: { key: 'enableAutocomplete', value: e.target.checked } });
+    });
 
     /* ── Code Block Enhancement ────────────────────────── */
     function enhanceCodeBlocks(container) {

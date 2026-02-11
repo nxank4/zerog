@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { AIService } from '../services/AIService';
-import { ContextService } from '../services/ContextService';
+import { AIService } from '../core/AIService';
+import { ContextService } from '../core/ContextService';
 
 /**
  * Ghost Text Provider for Copilot-style inline completions.
@@ -9,7 +9,6 @@ import { ContextService } from '../services/ContextService';
 export class GhostTextProvider implements vscode.InlineCompletionItemProvider {
   private _aiService: AIService;
   private _debounceTimer: NodeJS.Timeout | null = null;
-  private _debounceDelay: number = 300; // ms
   private _currentAbortController: AbortController | null = null;
 
   constructor() {
@@ -42,6 +41,9 @@ export class GhostTextProvider implements vscode.InlineCompletionItemProvider {
       return null;
     }
 
+    // Read debounce delay from config
+    const autocompleteDelay = config.get<number>('autocompleteDelay', 300);
+
     // Cancel any pending debounced request
     if (this._debounceTimer) {
       clearTimeout(this._debounceTimer);
@@ -73,7 +75,7 @@ export class GhostTextProvider implements vscode.InlineCompletionItemProvider {
           console.error('[GhostText] Completion failed:', error);
           resolve(null);
         }
-      }, this._debounceDelay);
+      }, autocompleteDelay);
     });
   }
 

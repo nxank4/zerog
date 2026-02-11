@@ -1,15 +1,15 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { AIService } from '../services/AIService';
-import { ContextService } from '../services/ContextService';
-import { EditorService } from '../services/EditorService';
-import { TerminalService } from '../services/TerminalService';
-import { AgentLoop } from '../services/AgentLoop';
-import { SessionService } from '../services/SessionService';
-import { getWebviewContent } from '../utils/htmlGenerator';
+import { AIService } from '../core/AIService';
+import { ContextService } from '../core/ContextService';
+import { EditorService } from '../editor/EditorService';
+import { TerminalService } from '../terminal/TerminalService';
+import { AgentLoop } from './AgentLoop';
+import { SessionService } from '../core/SessionService';
+import { getWebviewContent } from './htmlGenerator';
 import { IChatMessage, IContextItem, IImageData, IWebviewMessage, IParsedContent, IPlanTask, ZeroGMode } from '../types';
 
-import { PromptFactory } from '../services/PromptFactory';
+import { PromptFactory } from '../core/PromptFactory';
 
 /**
  * Provider for the Zero-G sidebar webview
@@ -184,7 +184,30 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         case 'stopStream':
           this._handleStopStream();
           break;
-        case 'openSettings':
+        case 'openSettings': {
+          const config = vscode.workspace.getConfiguration('zerog');
+          this._view?.webview.postMessage({
+            type: 'loadSettings',
+            settings: {
+              baseUrl: config.get<string>('baseUrl', 'http://localhost:8080'),
+              authToken: config.get<string>('authToken', 'test'),
+              model: config.get<string>('model', 'claude-opus-4-6-thinking'),
+              systemPrompt: config.get<string>('systemPrompt', 'You are a helpful coding assistant.'),
+              maxTokens: config.get<number>('maxTokens', 4096),
+              enableAutocomplete: config.get<boolean>('enableAutocomplete', true),
+              autocompleteDelay: config.get<number>('autocompleteDelay', 300),
+              version: '0.0.1'
+            }
+          });
+          break;
+        }
+        case 'saveSettings': {
+          const { key, value } = data.value;
+          const settingsConfig = vscode.workspace.getConfiguration('zerog');
+          await settingsConfig.update(key, value, vscode.ConfigurationTarget.Global);
+          break;
+        }
+        case 'openAdvancedSettings':
           vscode.commands.executeCommand('workbench.action.openSettings', 'zerog');
           break;
         case 'toggleHistory':
@@ -549,7 +572,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   /**
    * Handle events from the agent loop
    */
-  private async _handleAgentEvent(event: import('../services/AgentLoop').AgentEvent) {
+  private async _handleAgentEvent(event: import('./AgentLoop').AgentEvent) {
     switch (event.type) {
       case 'taskStarted':
         this._view?.webview.postMessage({

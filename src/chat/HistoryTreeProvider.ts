@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { ISessionMeta } from '../types';
-import { SessionService } from '../services/SessionService';
+import { SessionService } from '../core/SessionService';
 
 /**
  * Tree item representing a single chat session in the History view.

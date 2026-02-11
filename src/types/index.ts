@@ -41,6 +41,7 @@ export interface IExtensionConfig {
   authToken: string;
   model: string;
   systemPrompt: string;
+  maxTokens: number;
 }
 
 export interface IStreamResponse {

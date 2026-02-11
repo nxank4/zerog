@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { AIService } from './AIService';
-import { ContextService } from './ContextService';
+import { AIService } from '../core/AIService';
+import { ContextService } from '../core/ContextService';
 
 /**
  * Controller for inline editing functionality (similar to Cursor's Cmd+K)

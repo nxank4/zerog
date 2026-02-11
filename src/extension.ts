@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
-import { SidebarProvider } from './providers/SidebarProvider';
-import { InlineEditController } from './services/InlineEditController';
-import { GhostTextProvider } from './providers/GhostTextProvider';
-import { TerminalLinkProvider } from './providers/TerminalLinkProvider';
-import { SessionService } from './services/SessionService';
-import { HistoryTreeProvider } from './providers/HistoryTreeProvider';
+import { SidebarProvider } from './chat/SidebarProvider';
+import { InlineEditController } from './editor/InlineEditController';
+import { GhostTextProvider } from './autocomplete/GhostTextProvider';
+import { TerminalLinkProvider } from './terminal/TerminalLinkProvider';
+import { SessionService } from './core/SessionService';
+import { HistoryTreeProvider } from './chat/HistoryTreeProvider';
 
 let sessionService: SessionService;
 

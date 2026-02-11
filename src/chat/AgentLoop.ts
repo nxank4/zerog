@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { AIService } from './AIService';
-import { ContextService } from './ContextService';
-import { EditorService } from './EditorService';
+import { AIService } from '../core/AIService';
+import { ContextService } from '../core/ContextService';
+import { EditorService } from '../editor/EditorService';
 import { IPlanTask, IContextItem } from '../types';
 
 export type AgentEvent =
