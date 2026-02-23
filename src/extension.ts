@@ -4,15 +4,45 @@ import { InlineEditController } from './editor/InlineEditController';
 import { GhostTextProvider } from './autocomplete/GhostTextProvider';
 import { TerminalLinkProvider } from './terminal/TerminalLinkProvider';
 import { SessionService } from './core/SessionService';
-import { HistoryTreeProvider } from './chat/HistoryTreeProvider';
+import { ConfigService } from './core/ConfigService';
+import { CodebaseIndexer } from './features/search/CodebaseIndexer';
+import { LogService } from './core/LogService';
+import { ZeroGMode } from './types';
 
 let sessionService: SessionService;
+
+/**
+ * Cycle through Zero-G modes (ask -> planner -> agent -> debug -> ask)
+ */
+async function cycleMode(): Promise<void> {
+  const configService = ConfigService.instance();
+  const currentMode = configService.get<string>('general.mode', 'ask');
+  
+  const modes: ZeroGMode[] = ['ask', 'planner', 'agent', 'debug'];
+  const currentIndex = modes.indexOf(currentMode as ZeroGMode);
+  const nextIndex = (currentIndex + 1) % modes.length;
+  const nextMode = modes[nextIndex];
+  
+  const settingsConfig = vscode.workspace.getConfiguration('zerog');
+  await settingsConfig.update('general.mode', nextMode, vscode.ConfigurationTarget.Global);
+  
+  // Show notification to user
+  vscode.window.showInformationMessage(`Zero-G mode changed to: ${nextMode}`);
+}
 
 /**
  * Extension activation entry point
  */
 export function activate(context: vscode.ExtensionContext) {
   console.log('Zero-G extension is now active!');
+
+  // Initialize ConfigService singleton
+  const configService = ConfigService.instance();
+  context.subscriptions.push(configService);
+
+  // Initialize LogService singleton
+  const logService = LogService.instance();
+  context.subscriptions.push(logService);
 
   // Initialize session service
   sessionService = new SessionService(context.globalStorageUri);
@@ -24,19 +54,17 @@ export function activate(context: vscode.ExtensionContext) {
   const inlineEditController = new InlineEditController();
   const ghostTextProvider = new GhostTextProvider();
   const terminalLinkProvider = new TerminalLinkProvider();
-  const historyTreeProvider = new HistoryTreeProvider(sessionService);
+
+  // Initialize codebase indexer
+  const codebaseIndexer = new CodebaseIndexer();
+  context.subscriptions.push(codebaseIndexer);
+  provider.setCodebaseIndexer(codebaseIndexer);
+  codebaseIndexer.buildIndex();
 
   // Register webview provider
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider('zerog.chatView', provider)
   );
-
-  // Register history tree view
-  const historyView = vscode.window.createTreeView('zerog.historyView', {
-    treeDataProvider: historyTreeProvider,
-    showCollapseAll: false
-  });
-  context.subscriptions.push(historyView);
 
   // Register inline completion provider for all languages
   context.subscriptions.push(
@@ -84,55 +112,19 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Session management commands
+  // New chat command
   context.subscriptions.push(
     vscode.commands.registerCommand('zerog.newChat', () => {
       provider.startNewSession();
-      historyTreeProvider.refresh();
     })
   );
 
+  // Cycle mode command
   context.subscriptions.push(
-    vscode.commands.registerCommand('zerog.openSession', async (sessionId: string) => {
-      await provider.switchToSession(sessionId);
-      vscode.commands.executeCommand('zerog.chatView.focus');
+    vscode.commands.registerCommand('zerog.cycleMode', async () => {
+      await cycleMode();
     })
   );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('zerog.deleteSession', async (item: any) => {
-      const sessionId = item?.sessionMeta?.id;
-      if (!sessionId) { return; }
-      const confirm = await vscode.window.showWarningMessage(
-        `Delete session "${item.sessionMeta.name}"?`,
-        { modal: true },
-        'Delete'
-      );
-      if (confirm === 'Delete') {
-        await sessionService.deleteSession(sessionId);
-        provider.onSessionDeleted(sessionId);
-        historyTreeProvider.refresh();
-      }
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('zerog.renameSession', async (item: any) => {
-      const sessionId = item?.sessionMeta?.id;
-      if (!sessionId) { return; }
-      const newName = await vscode.window.showInputBox({
-        prompt: 'Enter new session name',
-        value: item.sessionMeta.name
-      });
-      if (newName) {
-        await sessionService.renameSession(sessionId, newName);
-        historyTreeProvider.refresh();
-      }
-    })
-  );
-
-  // Expose history refresh for SidebarProvider
-  provider.onSessionChanged = () => historyTreeProvider.refresh();
 
   // Register controllers for disposal
   context.subscriptions.push(inlineEditController);

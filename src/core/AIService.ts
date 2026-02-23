@@ -2,9 +2,10 @@ import axios from 'axios';
 import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
-import { IChatMessage, IContextItem, IExtensionConfig, IParsedContent, IParsedSegment, IToolCall, ZeroGMode } from '../types';
+import { IChatMessage, IContextItem, IParsedContent, IParsedSegment, IToolCall, ZeroGMode } from '../types';
 import { ContextService } from './ContextService';
 import { PromptFactory } from './PromptFactory';
+import { ConfigService } from './ConfigService';
 
 /**
  * Service responsible for AI communication with Antigravity proxy
@@ -34,20 +35,6 @@ export class AIService {
         return '<pre class="hljs"><code>' + this._md.utils.escapeHtml(str) + '</code></pre>';
       }
     });
-  }
-
-  /**
-   * Get extension configuration
-   */
-  private _getConfig(): IExtensionConfig {
-    const config = vscode.workspace.getConfiguration('zerog');
-    return {
-      baseUrl: config.get<string>('baseUrl', 'http://localhost:8080'),
-      authToken: config.get<string>('authToken', 'test'),
-      model: config.get<string>('model', 'claude-opus-4-6-thinking'),
-      systemPrompt: config.get<string>('systemPrompt', 'You are a helpful coding assistant.'),
-      maxTokens: config.get<number>('maxTokens', 4096)
-    };
   }
 
   /**
@@ -134,11 +121,12 @@ Use this structure to understand the codebase organization and provide more cont
     mode: ZeroGMode = 'ask',
     abortSignal?: AbortSignal
   ): Promise<string> {
-    const config = this._getConfig();
+    const conn = ConfigService.instance().getConnectionConfig();
+    const adv = ConfigService.instance().getAdvancedConfig();
 
     // Use PromptFactory for mode-specific prompt, fall back to config for 'ask'
     const basePrompt = mode === 'ask'
-      ? config.systemPrompt
+      ? (adv.systemPrompt || 'You are a helpful coding assistant.')
       : PromptFactory.getSystemPrompt(mode);
     
     // Add context to the last user message if available
@@ -181,17 +169,17 @@ Use this structure to understand the codebase organization and provide more cont
 
     try {
       const response = await axios.post(
-        config.baseUrl + '/v1/messages',
+        conn.baseUrl + '/v1/messages',
         {
-          model: config.model,
-          max_tokens: config.maxTokens,
+          model: conn.model,
+          max_tokens: adv.contextLimit,
           system: this._buildSystemPrompt(basePrompt),
           messages: messagesWithContext,
           stream: true
         },
         {
           headers: {
-            'x-api-key': config.authToken,
+            'x-api-key': conn.apiKey,
             'anthropic-version': '2023-06-01',
             'Content-Type': 'application/json'
           },
@@ -327,13 +315,14 @@ Use this structure to understand the codebase organization and provide more cont
    * @returns Completion text
    */
   public async getCompletion(prompt: string, abortSignal: AbortSignal): Promise<string> {
-    const config = this._getConfig();
+    const conn = ConfigService.instance().getConnectionConfig();
+    const adv = ConfigService.instance().getAdvancedConfig();
 
     try {
       const response = await axios.post(
-        config.baseUrl + '/v1/messages',
+        conn.baseUrl + '/v1/messages',
         {
-          model: config.model,
+          model: conn.model,
           max_tokens: 512, // Shorter for autocomplete
           system: 'You are a code completion assistant. Provide concise, accurate completions.',
           messages: [
@@ -343,11 +332,11 @@ Use this structure to understand the codebase organization and provide more cont
             }
           ],
           stream: false, // Non-streaming for simpler handling
-          temperature: 0.3 // Lower temperature for more predictable completions
+          temperature: adv.temperature
         },
         {
           headers: {
-            'x-api-key': config.authToken,
+            'x-api-key': conn.apiKey,
             'anthropic-version': '2023-06-01',
             'Content-Type': 'application/json'
           },

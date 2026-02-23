@@ -1,4 +1,5 @@
 const esbuild = require("esbuild");
+const { cpSync } = require("fs");
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -23,6 +24,13 @@ const esbuildProblemMatcherPlugin = {
 	},
 };
 
+/**
+ * Copy static media assets to dist/
+ */
+function copyMedia() {
+	cpSync('media', 'dist/media', { recursive: true });
+}
+
 async function main() {
 	const ctx = await esbuild.context({
 		entryPoints: [
@@ -43,9 +51,11 @@ async function main() {
 		],
 	});
 	if (watch) {
+		copyMedia();
 		await ctx.watch();
 	} else {
 		await ctx.rebuild();
+		copyMedia();
 		await ctx.dispose();
 	}
 }

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { AIService } from '../core/AIService';
+import { ConfigService } from '../core/ConfigService';
 import { ContextService } from '../core/ContextService';
 import { EditorService } from '../editor/EditorService';
 import { IPlanTask, IContextItem } from '../types';
@@ -63,7 +64,15 @@ export class AgentLoop {
     this._running = true;
 
     try {
+      const maxIterations = ConfigService.instance().getAgentConfig().maxIterations;
+      let iterations = 0;
+
       while (this._running) {
+        if (iterations >= maxIterations) {
+          this._onEvent({ type: 'loopFinished' });
+          break;
+        }
+
         const nextTask = plan.find(t => t.status === 'pending');
         if (!nextTask) {
           this._onEvent({ type: 'loopFinished' });
@@ -82,6 +91,7 @@ export class AgentLoop {
           nextTask.status = 'done';
           updatePlan(plan);
           this._onEvent({ type: 'taskCompleted', task: nextTask });
+          iterations++;
 
           // If auto-advance is off, stop after each task
           if (!this._autoAdvance) {

@@ -133,7 +133,7 @@ export class EditorService {
     let originalUri: vscode.Uri;
 
     if (targetFilePath) {
-      originalUri = vscode.Uri.file(targetFilePath);
+      originalUri = this._resolveUri(targetFilePath);
       try {
         originalDoc = await vscode.workspace.openTextDocument(originalUri);
       } catch {
@@ -425,6 +425,54 @@ export class EditorService {
       }
     }
     this._pendingChanges = [];
+  }
+
+  /**
+   * Apply file content, resolving paths relative to the workspace root.
+   * Uses WorkspaceEdit so it works even when the file isn't open.
+   * @param filePath - Absolute or workspace-relative path
+   * @param content - Full file content to write
+   * @returns true if the edit was applied successfully
+   */
+  public async applyFileChanges(filePath: string, content: string): Promise<boolean> {
+    const uri = this._resolveUri(filePath);
+
+    const edit = new vscode.WorkspaceEdit();
+
+    try {
+      // File exists — replace its entire content
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const fullRange = new vscode.Range(
+        doc.positionAt(0),
+        doc.positionAt(doc.getText().length)
+      );
+      edit.replace(uri, fullRange, content);
+    } catch {
+      // File doesn't exist yet — create it
+      const dirUri = vscode.Uri.file(path.dirname(uri.fsPath));
+      try { await vscode.workspace.fs.stat(dirUri); } catch {
+        await vscode.workspace.fs.createDirectory(dirUri);
+      }
+      edit.createFile(uri, { overwrite: true });
+      edit.insert(uri, new vscode.Position(0, 0), content);
+    }
+
+    return vscode.workspace.applyEdit(edit);
+  }
+
+  /**
+   * Resolve a file path to a VS Code Uri.
+   * If the path is relative, it is joined to the first workspace folder.
+   */
+  private _resolveUri(filePath: string): vscode.Uri {
+    if (path.isAbsolute(filePath)) {
+      return vscode.Uri.file(filePath);
+    }
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (workspaceFolder) {
+      return vscode.Uri.joinPath(workspaceFolder.uri, filePath);
+    }
+    return vscode.Uri.file(filePath);
   }
 
   /**

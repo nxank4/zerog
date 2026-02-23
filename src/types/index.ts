@@ -36,12 +36,24 @@ export interface IContextItem {
   };
 }
 
-export interface IExtensionConfig {
+export interface IConnectionConfig {
+  provider: string;
   baseUrl: string;
-  authToken: string;
+  apiKey: string;
   model: string;
+}
+
+export interface IAgentConfig {
+  allowTerminal: boolean;
+  autoApplyDiff: boolean;
+  maxIterations: number;
+}
+
+export interface IAdvancedConfig {
+  temperature: number;
   systemPrompt: string;
-  maxTokens: number;
+  contextLimit: number;
+  debugMode: boolean;
 }
 
 export interface IStreamResponse {

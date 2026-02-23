@@ -1,15 +1,19 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { AIService } from '../core/AIService';
+import { ConfigService } from '../core/ConfigService';
 import { ContextService } from '../core/ContextService';
 import { EditorService } from '../editor/EditorService';
 import { TerminalService } from '../terminal/TerminalService';
-import { AgentLoop } from './AgentLoop';
+import { AgentLoop } from '../features/agent/AgentLoop';
+import { CommandRunner } from '../features/commands/CommandRunner';
+import { LogService } from '../core/LogService';
 import { SessionService } from '../core/SessionService';
 import { getWebviewContent } from './htmlGenerator';
 import { IChatMessage, IContextItem, IImageData, IWebviewMessage, IParsedContent, IPlanTask, ZeroGMode } from '../types';
 
 import { PromptFactory } from '../core/PromptFactory';
+import { CodebaseIndexer } from '../features/search/CodebaseIndexer';
 
 /**
  * Provider for the Zero-G sidebar webview
@@ -36,7 +40,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private _contextService: ContextService;
   private _editorService: EditorService;
   private _terminalService: TerminalService;
+  private _commandRunner: CommandRunner;
   private _agentLoop: AgentLoop;
+  private _codebaseIndexer: CodebaseIndexer | null = null;
 
   constructor(private readonly _extensionUri: vscode.Uri, context: vscode.ExtensionContext, sessionService: SessionService) {
     this._context = context;
@@ -46,10 +52,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this._aiService = new AIService(this._contextService);
     this._editorService = new EditorService();
     this._terminalService = new TerminalService();
+    this._commandRunner = new CommandRunner();
     this._agentLoop = new AgentLoop(
       this._aiService,
       this._contextService,
-      this._editorService,
       (event) => this._handleAgentEvent(event)
     );
 
@@ -74,6 +80,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     return this._agentLoop;
   }
 
+  public setCodebaseIndexer(indexer: CodebaseIndexer): void {
+    this._codebaseIndexer = indexer;
+    this._contextService.setCodebaseIndexer(indexer);
+  }
+
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext,
@@ -86,7 +97,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this._extensionUri]
     };
 
-    webviewView.webview.html = getWebviewContent(webviewView.webview);
+    webviewView.webview.html = getWebviewContent(webviewView.webview, this._extensionUri);
 
     // Initialize project map for AI context
     this._aiService.initializeProjectMap().catch(err => {
@@ -101,9 +112,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         case 'applyCode':
           await this._handleApplyCode(data.value);
           break;
-        case 'applyFileChange':
-          await this._editorService.openDiffReview(data.value, true, data.filePath);
+        case 'applyFileChange': {
+          const success = await this._editorService.applyFileChanges(data.filePath!, data.value);
+          this._view?.webview.postMessage({
+            type: 'applyResult',
+            filePath: data.filePath,
+            success,
+          });
           break;
+        }
         case 'copyCode':
           await this._handleCopyCode(data.value);
           break;
@@ -129,11 +146,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           this._handleClearPreview();
           break;
         case 'runTerminalCommand':
-          await this._handleRunTerminalCommand(data.value!);
+        case 'runCommand': {
+          const cmdResult = await this._commandRunner.run(data.value!);
+          const output = [cmdResult.stdout, cmdResult.stderr].filter(Boolean).join('\n') || '(no output)';
+          this._view?.webview.postMessage({
+            type: 'commandResult',
+            command: data.value,
+            output,
+            exitCode: cmdResult.exitCode,
+            success: cmdResult.success,
+          });
           break;
-        case 'runCommand':
-          await this._handleRunTerminalCommand(data.value!);
-          break;
+        }
         case 'setMode':
           this._currentMode = data.mode || 'ask';
           // Send saved plan to webview when switching to planner/agent
@@ -149,6 +173,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           break;
         case 'stopAgent':
           this._agentLoop.stop();
+          break;
+        case 'approveToolExecution':
+          this._agentLoop.approveToolExecution();
+          break;
+        case 'rejectToolExecution':
+          this._agentLoop.rejectToolExecution();
           break;
         case 'openChangeDiff':
           await this._editorService.openChangeDiff(data.filePath!);
@@ -176,7 +206,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           this._handleEditLastMessage(data.value);
           break;
         case 'rejectFileChange':
-          await this._handleRejectFileChange(data.filePath!, data.fileName!);
+          await this._handleRejectFileChange(data.filePath!, data.fileName!, data.value);
           break;
         case 'newChat':
           this.startNewSession();
@@ -184,35 +214,86 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         case 'stopStream':
           this._handleStopStream();
           break;
-        case 'openSettings': {
-          const config = vscode.workspace.getConfiguration('zerog');
+        case 'getSettings': {
+          const cs = ConfigService.instance();
+          const conn = cs.getConnectionConfig();
+          const agent = cs.getAgentConfig();
+          const adv = cs.getAdvancedConfig();
           this._view?.webview.postMessage({
             type: 'loadSettings',
             settings: {
-              baseUrl: config.get<string>('baseUrl', 'http://localhost:8080'),
-              authToken: config.get<string>('authToken', 'test'),
-              model: config.get<string>('model', 'claude-opus-4-6-thinking'),
-              systemPrompt: config.get<string>('systemPrompt', 'You are a helpful coding assistant.'),
-              maxTokens: config.get<number>('maxTokens', 4096),
-              enableAutocomplete: config.get<boolean>('enableAutocomplete', true),
-              autocompleteDelay: config.get<number>('autocompleteDelay', 300),
+              // General
+              mode: cs.get<string>('general.mode', 'ask'),
+              language: cs.get<string>('general.language', 'auto'),
+              enableAutocomplete: cs.get<boolean>('general.enableAutocomplete', true),
+              // UI
+              theme: cs.get<string>('ui.theme', 'system'),
+              // Connection
+              provider: conn.provider,
+              baseUrl: conn.baseUrl,
+              apiKey: conn.apiKey,
+              model: conn.model,
+              // Agent
+              allowTerminal: agent.allowTerminal,
+              autoApplyDiff: agent.autoApplyDiff,
+              maxIterations: agent.maxIterations,
+              // Advanced
+              temperature: adv.temperature,
+              systemPrompt: adv.systemPrompt,
+              contextLimit: adv.contextLimit,
+              debugMode: adv.debugMode,
+              // Meta
               version: '0.0.1'
             }
           });
           break;
         }
-        case 'saveSettings': {
-          const { key, value } = data.value;
+        case 'updateSettings': {
+          const updates = data.value as Record<string, unknown>;
           const settingsConfig = vscode.workspace.getConfiguration('zerog');
-          await settingsConfig.update(key, value, vscode.ConfigurationTarget.Global);
+          for (const [key, val] of Object.entries(updates)) {
+            await settingsConfig.update(key, val, vscode.ConfigurationTarget.Global);
+          }
           break;
         }
         case 'openAdvancedSettings':
           vscode.commands.executeCommand('workbench.action.openSettings', 'zerog');
           break;
-        case 'toggleHistory':
-          vscode.commands.executeCommand('zerog.historyView.focus');
+        case 'showLogs':
+          LogService.instance().show();
           break;
+        case 'listSessions': {
+          const sessions = await this._sessionService.listSessions();
+          this._view?.webview.postMessage({
+            type: 'sessionList',
+            sessions,
+            activeId: this._currentSessionId,
+          });
+          break;
+        }
+        case 'loadSession':
+          if (data.value) {
+            await this.switchToSession(data.value);
+            this.onSessionChanged?.();
+          }
+          break;
+        case 'deleteSession':
+          if (data.value) {
+            await this._sessionService.deleteSession(data.value);
+            this.onSessionDeleted(data.value);
+            this.onSessionChanged?.();
+          }
+          break;
+        case 'clearAllSessions': {
+          const allSessions = await this._sessionService.listSessions();
+          for (const s of allSessions) {
+            if (s.id !== this._currentSessionId) {
+              await this._sessionService.deleteSession(s.id);
+            }
+          }
+          this.onSessionChanged?.();
+          break;
+        }
         case 'updateSessionTitle':
           if (data.value) {
             this._sessionService.renameSession(this._currentSessionId, data.value);
@@ -225,6 +306,26 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     // Send initial context
     this._sendContextInfo();
+
+    // Update context chip when user switches editor tabs
+    webviewView.webview.onDidReceiveMessage(() => {}, undefined, []);
+    const editorChangeDisposable = vscode.window.onDidChangeActiveTextEditor(() => {
+      this._sendContextInfo();
+    });
+    webviewView.onDidDispose(() => editorChangeDisposable.dispose());
+
+    // Send initial theme
+    const initialTheme = ConfigService.instance().get<string>('ui.theme', 'system');
+    webviewView.webview.postMessage({ type: 'applyTheme', theme: initialTheme });
+
+    // Forward codebase indexer status to webview
+    if (this._codebaseIndexer) {
+      this._codebaseIndexer.onStatusChange((status) => {
+        this._view?.webview.postMessage({ type: 'indexStatus', status });
+      });
+      // Send current status immediately
+      this._view?.webview.postMessage({ type: 'indexStatus', status: this._codebaseIndexer.status });
+    }
 
     // Restore persisted plan to webview
     if (this._currentPlan.length > 0) {
@@ -373,6 +474,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       const droppedFileItems = await this._contextService.resolveContext(droppedFilePaths);
       contextItems.push(...droppedFileItems);
     }
+
+    // Add codebase search context
+    const searchResults = await this._contextService.queryCodebase(processedMessage);
+    contextItems.push(...searchResults);
 
     // Add user message to history (multimodal if images are present)
     if (images && images.length > 0) {
@@ -531,13 +636,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Handle run terminal command event
-   */
-  private async _handleRunTerminalCommand(command: string) {
-    await this._terminalService.executeCommand(command);
-  }
-
-  /**
    * Start the agent loop to execute pending plan tasks
    */
   private async _startAgentLoop() {
@@ -572,7 +670,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   /**
    * Handle events from the agent loop
    */
-  private async _handleAgentEvent(event: import('./AgentLoop').AgentEvent) {
+  private async _handleAgentEvent(event: import('../features/agent/AgentLoop').AgentEvent) {
     switch (event.type) {
       case 'taskStarted':
         this._view?.webview.postMessage({
@@ -590,7 +688,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       case 'streamChunk':
         this._view?.webview.postMessage({ type: 'streamChunk', content: event.content });
         break;
-      case 'streamDone':
+      case 'streamDone': {
         const parsedContent = this._aiService.parseToolCalls(event.content);
         parsedContent.segments.forEach(segment => {
           if (segment.type === 'text') {
@@ -598,15 +696,30 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           }
         });
         this._view?.webview.postMessage({ type: 'streamDone', parsedContent });
-        // Execute file operations from agent tool calls
-        await this._executeFileOperations(event.content);
         break;
-      case 'waitingForReview':
+      }
+      case 'waitingForTool':
         this._view?.webview.postMessage({
-          type: 'addMessage',
+          type: 'agentWaitingForTool',
+          toolCall: event.toolCall
+        });
+        break;
+      case 'toolExecuted':
+        this._view?.webview.postMessage({
+          type: 'agentToolResult',
+          result: event.result
+        });
+        // Start a new stream for the next AI turn
+        this._view?.webview.postMessage({
+          type: 'startStream',
           role: 'assistant',
-          content: `Waiting for review of task #${event.task.id}. Accept or discard the diff to continue.`,
-          html: false
+          mode: 'agent'
+        });
+        break;
+      case 'stateChanged':
+        this._view?.webview.postMessage({
+          type: 'agentStateChanged',
+          state: event.state
         });
         break;
       case 'taskCompleted':
@@ -777,12 +890,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   /**
    * Handle reject file change: cleanup and add rejection to history
    */
-  private async _handleRejectFileChange(filePath: string, fileName: string) {
+  private async _handleRejectFileChange(filePath: string, fileName: string, reason?: string) {
     // Close any open diff tab and clean up temp files
     await this._editorService.discardDiff();
 
-    // Add rejection message to AI history
-    const rejectionMsg = `User rejected the changes to ${fileName || filePath}.`;
+    // Build rejection message with optional reason
+    const displayName = fileName || filePath;
+    const rejectionMsg = reason
+      ? `User rejected the changes to ${displayName}. Reason: "${reason}"`
+      : `User rejected the changes to ${displayName}.`;
     this._messages.push({ role: 'user', content: rejectionMsg });
 
     // Show rejection in chat
@@ -793,9 +909,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       html: false
     });
 
-    // In agent mode, auto-prompt the AI for feedback
+    // In agent mode, auto-prompt the AI with the reason so it can self-correct
     if (this._currentMode === 'agent') {
-      const followUp = `Why was ${fileName || filePath} rejected? What should I change?`;
+      const followUp = reason
+        ? `The user rejected ${displayName} because: "${reason}". Please revise accordingly.`
+        : `Why was ${displayName} rejected? What should I change?`;
       await this._handleSendMessage(followUp);
     }
   }

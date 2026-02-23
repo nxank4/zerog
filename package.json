@@ -9,10 +9,7 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onView:zerog.chatView",
-    "onView:zerog.historyView"
-  ],
+  "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -29,11 +26,13 @@
         {
           "type": "webview",
           "id": "zerog.chatView",
-          "name": "AI Chat"
+          "name": "AI Chat",
+          "icon": "$(comment-discussion)"
         },
         {
           "id": "zerog.historyView",
-          "name": "History"
+          "name": "History",
+          "icon": "$(history)"
         }
       ]
     },
@@ -74,6 +73,10 @@
         "command": "zerog.renameSession",
         "title": "Rename Session",
         "icon": "$(edit)"
+      },
+      {
+        "command": "zerog.cycleMode",
+        "title": "Zero-G: Cycle Mode"
       }
     ],
     "menus": {
@@ -125,48 +128,141 @@
         "key": "ctrl+alt+k",
         "mac": "cmd+k",
         "when": "editorTextFocus && editorHasSelection"
+      },
+      {
+        "command": "zerog.cycleMode",
+        "key": "ctrl+tab",
+        "mac": "ctrl+tab"
       }
     ],
-    "configuration": {
-      "title": "Zero-G",
-      "properties": {
-        "zerog.baseUrl": {
-          "type": "string",
-          "default": "http://localhost:8080",
-          "description": "Base URL for the Antigravity AI proxy (matches ANTHROPIC_BASE_URL)"
-        },
-        "zerog.authToken": {
-          "type": "string",
-          "default": "test",
-          "description": "Authentication token for the AI proxy (matches ANTHROPIC_AUTH_TOKEN)"
-        },
-        "zerog.model": {
-          "type": "string",
-          "default": "claude-opus-4-6-thinking",
-          "description": "AI model to use (matches ANTHROPIC_MODEL)"
-        },
-        "zerog.systemPrompt": {
-          "type": "string",
-          "default": "You are a helpful coding assistant.",
-          "description": "System prompt for the AI assistant"
-        },
-        "zerog.enableAutocomplete": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable AI-powered ghost text autocomplete (Copilot-style inline completions)"
-        },
-        "zerog.maxTokens": {
-          "type": "number",
-          "default": 4096,
-          "description": "Maximum number of tokens in chat responses"
-        },
-        "zerog.autocompleteDelay": {
-          "type": "number",
-          "default": 300,
-          "description": "Delay in milliseconds before triggering autocomplete"
+    "configuration": [
+      {
+        "title": "Zero-G — General",
+        "properties": {
+          "zerog.general.mode": {
+            "type": "string",
+            "default": "ask",
+            "enum": [
+              "ask",
+              "planner",
+              "agent",
+              "debug"
+            ],
+            "markdownDescription": "Default interaction mode when opening a new chat."
+          },
+          "zerog.general.language": {
+            "type": "string",
+            "default": "auto",
+            "markdownDescription": "Preferred response language. Use `auto` to match the editor locale."
+          },
+          "zerog.general.enableAutocomplete": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Enable AI-powered **ghost text** inline completions (Copilot-style)."
+          }
+        }
+      },
+      {
+        "title": "Zero-G — UI",
+        "properties": {
+          "zerog.ui.theme": {
+            "type": "string",
+            "default": "system",
+            "enum": [
+              "system",
+              "zerog-dark",
+              "midnight",
+              "matrix",
+              "latte"
+            ],
+            "enumDescriptions": [
+              "Match VS Code's current theme",
+              "Zero-G default dark theme",
+              "Deep blue with sky blue accents",
+              "Neon green on black",
+              "Warm light sepia tone"
+            ],
+            "markdownDescription": "Color theme for the Zero-G sidebar."
+          }
+        }
+      },
+      {
+        "title": "Zero-G — Connection",
+        "properties": {
+          "zerog.connection.provider": {
+            "type": "string",
+            "default": "antigravity",
+            "markdownDescription": "AI provider backend identifier."
+          },
+          "zerog.connection.baseUrl": {
+            "type": "string",
+            "default": "http://localhost:8080",
+            "markdownDescription": "Base URL for the AI proxy (e.g. `http://localhost:8080`)."
+          },
+          "zerog.connection.apiKey": {
+            "type": "string",
+            "default": "test",
+            "markdownDescription": "API key / auth token for the AI proxy."
+          },
+          "zerog.connection.model": {
+            "type": "string",
+            "default": "claude-opus-4-6-thinking",
+            "markdownDescription": "Model identifier sent to the provider (e.g. `claude-opus-4-6-thinking`)."
+          }
+        }
+      },
+      {
+        "title": "Zero-G — Agent Capabilities",
+        "properties": {
+          "zerog.agent.allowTerminal": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Allow the agent to execute terminal commands automatically."
+          },
+          "zerog.agent.autoApplyDiff": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Automatically apply file diffs without manual review."
+          },
+          "zerog.agent.maxIterations": {
+            "type": "number",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 50,
+            "markdownDescription": "Maximum number of plan tasks the agent will execute in a single run."
+          }
+        }
+      },
+      {
+        "title": "Zero-G — Advanced",
+        "properties": {
+          "zerog.advanced.temperature": {
+            "type": "number",
+            "default": 0.7,
+            "minimum": 0,
+            "maximum": 2,
+            "markdownDescription": "Sampling temperature for AI responses. Lower = more deterministic."
+          },
+          "zerog.advanced.systemPrompt": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Custom system prompt. Leave empty to use the built-in default."
+          },
+          "zerog.advanced.contextLimit": {
+            "type": "number",
+            "default": 4096,
+            "minimum": 256,
+            "maximum": 32768,
+            "markdownDescription": "Maximum number of tokens in chat responses."
+          },
+          "zerog.advanced.debugMode": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Enable verbose console logging for debugging."
+          }
         }
       }
-    }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -196,8 +292,10 @@
   },
   "dependencies": {
     "@types/markdown-it": "^14.1.2",
+    "@vscode/codicons": "^0.0.44",
     "axios": "^1.13.5",
     "highlight.js": "^11.11.1",
-    "markdown-it": "^14.1.0"
+    "markdown-it": "^14.1.0",
+    "minisearch": "^7.2.0"
   }
 }

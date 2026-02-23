@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { IContextItem, IContextMetadata } from '../types';
+import { CodebaseIndexer } from '../features/search/CodebaseIndexer';
 
 /**
  * Service responsible for managing code context (files, selections)
@@ -8,6 +9,7 @@ import { IContextItem, IContextMetadata } from '../types';
 export class ContextService {
   private _projectMapCache: string | null = null;
   private _fileWatcher: vscode.FileSystemWatcher | null = null;
+  private _codebaseIndexer: CodebaseIndexer | null = null;
   private _ignorePatterns: string[] = [
     'node_modules',
     '.git',
@@ -157,6 +159,25 @@ export class ContextService {
     }
 
     return contextItems;
+  }
+
+  public setCodebaseIndexer(indexer: CodebaseIndexer): void {
+    this._codebaseIndexer = indexer;
+  }
+
+  public async queryCodebase(query: string): Promise<IContextItem[]> {
+    if (!this._codebaseIndexer) { return []; }
+    const results = await this._codebaseIndexer.search(query, 5);
+    return results.map(r => {
+      const ext = (r.filename.split('.').pop() || '').toLowerCase();
+      return {
+        path: r.filePath,
+        content: r.content,
+        type: 'file' as const,
+        fileName: r.filename,
+        languageId: this._getLanguageFromExtension(ext),
+      };
+    });
   }
 
   /**

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { AIService } from '../core/AIService';
+import { ConfigService } from '../core/ConfigService';
 import { ContextService } from '../core/ContextService';
 
 /**
@@ -27,8 +28,7 @@ export class GhostTextProvider implements vscode.InlineCompletionItemProvider {
     token: vscode.CancellationToken
   ): Promise<vscode.InlineCompletionItem[] | vscode.InlineCompletionList | null> {
     // Check if autocomplete is enabled
-    const config = vscode.workspace.getConfiguration('zerog');
-    const enabled = config.get<boolean>('enableAutocomplete', true);
+    const enabled = ConfigService.instance().get<boolean>('general.enableAutocomplete', true);
     if (!enabled) {
       return null;
     }
@@ -41,8 +41,8 @@ export class GhostTextProvider implements vscode.InlineCompletionItemProvider {
       return null;
     }
 
-    // Read debounce delay from config
-    const autocompleteDelay = config.get<number>('autocompleteDelay', 300);
+    // Hardcoded 300ms debounce delay
+    const autocompleteDelay = 300;
 
     // Cancel any pending debounced request
     if (this._debounceTimer) {
